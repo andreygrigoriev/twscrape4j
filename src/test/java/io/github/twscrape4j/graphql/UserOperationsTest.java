@@ -1,6 +1,6 @@
 package io.github.twscrape4j.graphql;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import io.github.twscrape4j.accounts.Account;
 import io.github.twscrape4j.accounts.AccountPool;
 import io.github.twscrape4j.http.AccountHandle;
@@ -83,7 +83,7 @@ class UserOperationsTest {
                      "itemContent":{"itemType":"TimelineTweet","tweet_results":{"result":{
                        "rest_id":"3","legacy":{"full_text":"my tweet","created_at":"Mon Jan 01 00:00:00 +0000 2024",
                         "lang":"en","conversation_id_str":"3","favorite_count":0,"reply_count":0,
-                        "retweet_count":0,"quote_count":0}}}}}}]}]}}}}}}}
+                        "retweet_count":0,"quote_count":0}}}}}}]}]}}}}}}
                 """;
         when(graphQLClient.get(any(), any(), any(), any(), any())).thenReturn(response(json));
         var op = new UserTweetsOperation(graphQLClient);

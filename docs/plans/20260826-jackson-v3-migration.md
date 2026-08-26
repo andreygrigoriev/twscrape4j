@@ -116,13 +116,13 @@ Jackson 3 is a major version with three categories of breaking change relevant t
 - Modify: `src/test/java/io/github/twscrape4j/graphql/UserOperationsTest.java`
 - Modify: `src/test/java/io/github/twscrape4j/http/GraphQLClientTest.java`
 
-- [ ] replace all `import com.fasterxml.jackson.*` → `import tools.jackson.*` in all 6 test files
-- [ ] in `TweetTest.java`: remove `import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule`
-- [ ] in `TweetTest.java`: remove `.registerModule(new JavaTimeModule())` from `MAPPER` construction
-- [ ] in `TweetTest.java`: update `ObjectMapper` construction to Jackson 3 builder if needed:
+- [x] replace all `import com.fasterxml.jackson.*` → `import tools.jackson.*` in all 6 test files
+- [x] in `TweetTest.java`: remove `import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule`
+- [x] in `TweetTest.java`: remove `.registerModule(new JavaTimeModule())` from `MAPPER` construction
+- [x] in `TweetTest.java`: update `ObjectMapper` construction to Jackson 3 builder if needed:
   `JsonMapper.builder().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS).build()`
-- [ ] run `mvn test-compile` — must succeed with zero errors
-- [ ] run `mvn test` — must pass before moving to Task 6
+- [x] run `mvn test-compile` — must succeed with zero errors
+- [x] run `mvn test` — must pass before moving to Task 6
 
 ### Task 6: Verify acceptance criteria
 
