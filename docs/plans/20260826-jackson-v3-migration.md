@@ -55,12 +55,12 @@ Jackson 3 is a major version with three categories of breaking change relevant t
 **Files:**
 - Modify: `pom.xml`
 
-- [ ] verify the latest available Jackson 3.x version on Maven Central (`mvn dependency:get -Dartifact=tools.jackson.core:jackson-databind:LATEST` or check https://central.sonatype.com/artifact/tools.jackson.core/jackson-databind) and substitute that version throughout pom.xml — do not proceed until this resolves
-- [ ] change `<jackson.version>` property from `2.19.0` to the confirmed Jackson 3.x version
-- [ ] change `jackson-databind` groupId from `com.fasterxml.jackson.core` → `tools.jackson.core`
-- [ ] remove the `jackson-datatype-jsr310` dependency block entirely (Java Time is built into Jackson 3 core)
-- [ ] verify `mvn dependency:resolve` succeeds and Jackson 3 artifacts are downloaded
-- [ ] run `mvn test-compile` — expect compilation failures due to old imports (confirms dep change took effect)
+- [x] verify the latest available Jackson 3.x version on Maven Central (`mvn dependency:get -Dartifact=tools.jackson.core:jackson-databind:LATEST` or check https://central.sonatype.com/artifact/tools.jackson.core/jackson-databind) and substitute that version throughout pom.xml — do not proceed until this resolves
+- [x] change `<jackson.version>` property from `2.19.0` to the confirmed Jackson 3.x version
+- [x] change `jackson-databind` groupId from `com.fasterxml.jackson.core` → `tools.jackson.core`
+- [x] remove the `jackson-datatype-jsr310` dependency block entirely (Java Time is built into Jackson 3 core)
+- [x] verify `mvn dependency:resolve` succeeds and Jackson 3 artifacts are downloaded
+- [x] run `mvn test-compile` — expect compilation failures due to old imports (confirms dep change took effect)
 
 ### Task 2: Update imports in src/main — models package
 

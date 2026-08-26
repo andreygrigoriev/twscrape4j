@@ -15,7 +15,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <httpclient5.version>5.4.3</httpclient5.version>
-        <jackson.version>2.19.0</jackson.version>
+        <jackson.version>3.2.1</jackson.version>
         <conscrypt.version>2.5.2</conscrypt.version>
         <sqlite-jdbc.version>3.50.1.0</sqlite-jdbc.version>
         <jooq.version>3.19.22</jooq.version>
@@ -35,14 +35,8 @@
 
         <!-- JSON -->
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
             <version>${jackson.version}</version>
         </dependency>
 
