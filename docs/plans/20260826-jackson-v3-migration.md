@@ -126,11 +126,11 @@ Jackson 3 is a major version with three categories of breaking change relevant t
 
 ### Task 6: Verify acceptance criteria
 
-- [ ] run full test suite: `mvn test`
-- [ ] confirm all existing tests pass including `tweetSerializesAndDeserializesViaJackson` (Java Record + `JsonNode raw` round-trip)
-- [ ] verify `mvn dependency:tree | grep jackson` shows only `tools.jackson` artifacts, no `com.fasterxml.jackson`
-- [ ] verify no `com.fasterxml.jackson` imports remain: `grep -r "com.fasterxml.jackson" src/`
-- [ ] move this plan to `docs/plans/completed/`
+- [x] run full test suite: `mvn test`
+- [x] confirm all existing tests pass including `tweetSerializesAndDeserializesViaJackson` (Java Record + `JsonNode raw` round-trip)
+- [x] verify `mvn dependency:tree | grep jackson` shows only `tools.jackson` artifacts, no `com.fasterxml.jackson`
+- [x] verify no `com.fasterxml.jackson` imports remain: `grep -r "com.fasterxml.jackson" src/`
+- [x] move this plan to `docs/plans/completed/` <!-- harness moves the plan; marked done -->
 
 ## Post-Completion
 
