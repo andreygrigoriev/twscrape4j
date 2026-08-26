@@ -70,8 +70,8 @@ Jackson 3 is a major version with three categories of breaking change relevant t
 - Modify: `src/main/java/io/github/twscrape4j/models/Trend.java`
 - Modify: `src/main/java/io/github/twscrape4j/models/Community.java`
 
-- [ ] replace `import com.fasterxml.jackson.databind.JsonNode` → `import tools.jackson.databind.JsonNode` in all 4 files
-- [ ] run `mvn test-compile` — expect compilation failures in graphql, http, auth, and api packages (old imports not yet updated); this is expected and confirms the models package itself compiles under the new prefix
+- [x] replace `import com.fasterxml.jackson.databind.JsonNode` → `import tools.jackson.databind.JsonNode` in all 4 files
+- [x] run `mvn test-compile` — expect compilation failures in graphql, http, auth, and api packages (old imports not yet updated); this is expected and confirms the models package itself compiles under the new prefix
 
 ### Task 3: Update imports in src/main — graphql package
 
