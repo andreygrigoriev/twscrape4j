@@ -91,8 +91,8 @@ Jackson 3 is a major version with three categories of breaking change relevant t
 - Modify: `src/main/java/io/github/twscrape4j/graphql/UserMediaOperation.java`
 - Modify: `src/main/java/io/github/twscrape4j/graphql/UserTweetsOperation.java`
 
-- [ ] replace all `import com.fasterxml.jackson.databind.*` → `import tools.jackson.databind.*` across all 14 files
-- [ ] run `mvn compile` — expect only http/auth packages to still fail
+- [x] replace all `import com.fasterxml.jackson.databind.*` → `import tools.jackson.databind.*` across all 14 files
+- [x] run `mvn compile` — expect only http/auth packages to still fail
 
 ### Task 4: Update imports in src/main — http and auth packages
 

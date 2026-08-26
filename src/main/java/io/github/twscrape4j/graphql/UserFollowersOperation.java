@@ -1,6 +1,6 @@
 package io.github.twscrape4j.graphql;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import io.github.twscrape4j.accounts.AccountPool;
 import io.github.twscrape4j.http.GraphQLClient;
 import io.github.twscrape4j.models.User;
