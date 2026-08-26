@@ -1,7 +1,7 @@
 package io.github.twscrape4j.auth;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import io.github.twscrape4j.accounts.Account;
 import io.github.twscrape4j.http.GraphQLClient;
 import io.github.twscrape4j.http.TwitterException;

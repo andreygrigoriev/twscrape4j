@@ -101,10 +101,10 @@ Jackson 3 is a major version with three categories of breaking change relevant t
 - Modify: `src/main/java/io/github/twscrape4j/auth/LoginClient.java`
 - Modify: `src/main/java/io/github/twscrape4j/api/TwScrape.java`
 
-- [ ] replace `import com.fasterxml.jackson.databind.JsonNode` → `import tools.jackson.databind.JsonNode` in all 3 files
-- [ ] replace `import com.fasterxml.jackson.databind.ObjectMapper` → `import tools.jackson.databind.ObjectMapper` in `GraphQLClient.java` and `LoginClient.java`
-- [ ] leave `new ObjectMapper()` construction unchanged in both files — these mappers use only `readTree`/`writeValueAsString`/`createObjectNode` with no time types or annotations, so no configuration changes are needed
-- [ ] run `mvn compile` — must succeed with zero errors
+- [x] replace `import com.fasterxml.jackson.databind.JsonNode` → `import tools.jackson.databind.JsonNode` in all 3 files
+- [x] replace `import com.fasterxml.jackson.databind.ObjectMapper` → `import tools.jackson.databind.ObjectMapper` in `GraphQLClient.java` and `LoginClient.java`
+- [x] leave `new ObjectMapper()` construction unchanged in both files — these mappers use only `readTree`/`writeValueAsString`/`createObjectNode` with no time types or annotations, so no configuration changes are needed
+- [x] run `mvn compile` — must succeed with zero errors
 
 ### Task 5: Update test imports and remove JavaTimeModule
 
