@@ -1,6 +1,7 @@
 package io.github.twscrape4j.graphql;
 
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.twscrape4j.accounts.Account;
 import io.github.twscrape4j.accounts.AccountPool;
 import io.github.twscrape4j.http.AccountHandle;
@@ -17,7 +18,7 @@ import static org.mockito.Mockito.*;
 
 class UserOperationsTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
     private GraphQLClient graphQLClient;
     private AccountPool pool;
 
@@ -101,6 +102,24 @@ class UserOperationsTest {
         when(graphQLClient.get(any(), any(), any(), any(), any())).thenReturn(response(json));
         var page = new UserMediaOperation(graphQLClient).fetch(1L, null, pool);
         assertTrue(page.items().isEmpty());
+    }
+
+    @Test
+    void userMediaFetchReturnsTweetsWithContent() throws Exception {
+        String json = """
+                {"data":{"user":{"result":{"timeline_v2":{"timeline":{"instructions":[
+                  {"type":"TimelineAddEntries","entries":[
+                    {"entryId":"tweet-55","content":{"entryType":"TimelineTimelineItem",
+                     "itemContent":{"itemType":"TimelineTweet","tweet_results":{"result":{
+                       "rest_id":"55","legacy":{"full_text":"media tweet","created_at":"Mon Jan 01 00:00:00 +0000 2024",
+                        "lang":"en","conversation_id_str":"55","favorite_count":3,"reply_count":0,
+                        "retweet_count":1,"quote_count":0}}}}}}]}]}}}}}}
+                """;
+        when(graphQLClient.get(any(), any(), any(), any(), any())).thenReturn(response(json));
+        var page = new UserMediaOperation(graphQLClient).fetch(1L, null, pool);
+        assertEquals(1, page.items().size());
+        assertEquals(55L, page.items().get(0).id());
+        assertEquals("media tweet", page.items().get(0).text());
     }
 
     @Test

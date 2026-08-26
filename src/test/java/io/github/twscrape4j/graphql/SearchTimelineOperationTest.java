@@ -2,10 +2,10 @@ package io.github.twscrape4j.graphql;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.twscrape4j.accounts.Account;
 import io.github.twscrape4j.accounts.AccountPool;
 import io.github.twscrape4j.api.SearchMode;
-import io.github.twscrape4j.api.TrendCategory;
 import io.github.twscrape4j.http.AccountHandle;
 import io.github.twscrape4j.http.GraphQLClient;
 import io.github.twscrape4j.models.Tweet;
@@ -23,7 +23,7 @@ import static org.mockito.Mockito.*;
 
 class SearchTimelineOperationTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
 
     private GraphQLClient graphQLClient;
     private AccountPool pool;
@@ -187,5 +187,175 @@ class SearchTimelineOperationTest {
         int chars = spliterator.characteristics();
         assertTrue((chars & java.util.Spliterator.ORDERED) != 0);
         assertTrue((chars & java.util.Spliterator.NONNULL) != 0);
+    }
+
+    // --- ModelMapper.extractTimeline dead-branch coverage ---
+
+    @Test
+    void timelinePinEntryInstructionTypeExtractsTweet() throws Exception {
+        // TimelinePinEntry has "entry.content.items"; each item has content.entryType (same shape as normal entries)
+        String json = """
+                {"data":{"search_by_raw_query":{"search_timeline":{"timeline":{"instructions":[
+                  {
+                    "type": "TimelinePinEntry",
+                    "entry": {
+                      "entryId": "tweet-pin-1",
+                      "content": {
+                        "items": [
+                          {
+                            "entryId": "pinned-tweet-100",
+                            "content": {
+                              "entryType": "TimelineTimelineItem",
+                              "itemContent": {
+                                "tweet_results": {
+                                  "result": {
+                                    "rest_id": "100",
+                                    "legacy": {
+                                      "full_text": "pinned tweet",
+                                      "created_at": "Mon Jan 01 12:00:00 +0000 2024",
+                                      "lang": "en",
+                                      "conversation_id_str": "100",
+                                      "favorite_count": 0,
+                                      "reply_count": 0,
+                                      "retweet_count": 0,
+                                      "quote_count": 0
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]}}}}}
+                """;
+        JsonNode body = MAPPER.readTree(json);
+        when(graphQLClient.get(any(), any(), any(), any(), any()))
+                .thenReturn(new GraphQLClient.GraphQLResponse(body, 100, Instant.now().plusSeconds(900)));
+
+        var op = new SearchTimelineOperation(graphQLClient);
+        Page<Tweet> page = op.fetch("#pinned", SearchMode.LATEST, null, pool);
+
+        assertEquals(1, page.items().size());
+        assertEquals(100L, page.items().get(0).id());
+        assertEquals("pinned tweet", page.items().get(0).text());
+    }
+
+    @Test
+    void timelineTimelineModuleEntryTypeExtractsTweets() throws Exception {
+        String json = """
+                {"data":{"search_by_raw_query":{"search_timeline":{"timeline":{"instructions":[
+                  {
+                    "type": "TimelineAddEntries",
+                    "entries": [
+                      {
+                        "entryId": "module-1",
+                        "content": {
+                          "entryType": "TimelineTimelineModule",
+                          "items": [
+                            {
+                              "item": {
+                                "itemContent": {
+                                  "tweet_results": {
+                                    "result": {
+                                      "rest_id": "200",
+                                      "legacy": {
+                                        "full_text": "module tweet",
+                                        "created_at": "Mon Jan 01 12:00:00 +0000 2024",
+                                        "lang": "en",
+                                        "conversation_id_str": "200",
+                                        "favorite_count": 0,
+                                        "reply_count": 0,
+                                        "retweet_count": 0,
+                                        "quote_count": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]}}}}}
+                """;
+        JsonNode body = MAPPER.readTree(json);
+        when(graphQLClient.get(any(), any(), any(), any(), any()))
+                .thenReturn(new GraphQLClient.GraphQLResponse(body, 100, Instant.now().plusSeconds(900)));
+
+        var op = new SearchTimelineOperation(graphQLClient);
+        Page<Tweet> page = op.fetch("#module", SearchMode.LATEST, null, pool);
+
+        assertEquals(1, page.items().size());
+        assertEquals(200L, page.items().get(0).id());
+        assertEquals("module tweet", page.items().get(0).text());
+    }
+
+    @Test
+    void timelineReplaceEntryUpdatesBottomCursor() throws Exception {
+        // First emit a tweet via TimelineAddEntries, then update the cursor via TimelineReplaceEntry
+        String json = """
+                {"data":{"search_by_raw_query":{"search_timeline":{"timeline":{"instructions":[
+                  {
+                    "type": "TimelineAddEntries",
+                    "entries": [
+                      {
+                        "entryId": "tweet-300",
+                        "content": {
+                          "entryType": "TimelineTimelineItem",
+                          "itemContent": {
+                            "tweet_results": {
+                              "result": {
+                                "rest_id": "300",
+                                "legacy": {
+                                  "full_text": "replace cursor tweet",
+                                  "created_at": "Mon Jan 01 12:00:00 +0000 2024",
+                                  "lang": "en",
+                                  "conversation_id_str": "300",
+                                  "favorite_count": 0,
+                                  "reply_count": 0,
+                                  "retweet_count": 0,
+                                  "quote_count": 0
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "entryId": "cursor-bottom-0",
+                        "content": {
+                          "entryType": "TimelineTimelineCursor",
+                          "cursorType": "Bottom",
+                          "value": "old_cursor"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "TimelineReplaceEntry",
+                    "entry": {
+                      "content": {
+                        "entryType": "TimelineTimelineCursor",
+                        "cursorType": "Bottom",
+                        "value": "new_cursor"
+                      }
+                    }
+                  }
+                ]}}}}}
+                """;
+        JsonNode body = MAPPER.readTree(json);
+        when(graphQLClient.get(any(), any(), any(), any(), any()))
+                .thenReturn(new GraphQLClient.GraphQLResponse(body, 100, Instant.now().plusSeconds(900)));
+
+        var op = new SearchTimelineOperation(graphQLClient);
+        Page<Tweet> page = op.fetch("#replace", SearchMode.LATEST, null, pool);
+
+        assertEquals(1, page.items().size());
+        assertEquals("new_cursor", page.nextCursor());
     }
 }

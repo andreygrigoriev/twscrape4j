@@ -1,6 +1,7 @@
 package io.github.twscrape4j.graphql;
 
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.twscrape4j.accounts.Account;
 import io.github.twscrape4j.accounts.AccountPool;
 import io.github.twscrape4j.http.AccountHandle;
@@ -17,7 +18,7 @@ import static org.mockito.Mockito.*;
 
 class ListOperationsTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
     private GraphQLClient graphQLClient;
     private AccountPool pool;
 

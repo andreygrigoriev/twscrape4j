@@ -2,6 +2,7 @@ package io.github.twscrape4j.graphql;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.twscrape4j.accounts.Account;
 import io.github.twscrape4j.accounts.AccountPool;
 import io.github.twscrape4j.http.AccountHandle;
@@ -20,7 +21,7 @@ import static org.mockito.Mockito.*;
 
 class TweetOperationsTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
     private GraphQLClient graphQLClient;
     private AccountPool pool;
 
@@ -49,7 +50,7 @@ class TweetOperationsTest {
                      "itemContent":{"itemType":"TimelineTweet","tweet_results":{"result":{
                        "rest_id":"42","legacy":{"full_text":"Hello","created_at":"Mon Jan 01 00:00:00 +0000 2024",
                         "lang":"en","conversation_id_str":"42","favorite_count":1,"reply_count":0,
-                        "retweet_count":0,"quote_count":0},
+                        "retweet_count":0,"quote_count":0,"views":{"count":77}},
                        "core":{"user_results":{"result":{"rest_id":"1","legacy":{
                          "screen_name":"alice","name":"Alice","followers_count":10,"friends_count":5,
                          "created_at":"Mon Jan 01 00:00:00 +0000 2020"}}}}}}}}}]}]}}}
@@ -62,6 +63,7 @@ class TweetOperationsTest {
         assertTrue(tweet.isPresent());
         assertEquals(42L, tweet.get().id());
         assertEquals("Hello", tweet.get().text());
+        assertEquals(77L, tweet.get().stats().viewCount());
     }
 
     @Test

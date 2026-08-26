@@ -104,6 +104,32 @@ class GraphQLClientTest {
     }
 
     @Test
+    void errorCode141ThrowsAccountSuspendedException() throws Exception {
+        String json = "{\"errors\":[{\"code\":141,\"message\":\"Account suspended\"}]}";
+        stubResponse(200, json, null, null);
+
+        assertThrows(TwitterException.AccountSuspendedException.class, () ->
+                client.get(handle, "opId", "SearchTimeline", Map.of(), null));
+    }
+
+    @Test
+    void errorCode326ThrowsAccountSuspendedException() throws Exception {
+        String json = "{\"errors\":[{\"code\":326,\"message\":\"Account locked\"}]}";
+        stubResponse(200, json, null, null);
+
+        assertThrows(TwitterException.AccountSuspendedException.class, () ->
+                client.get(handle, "opId", "SearchTimeline", Map.of(), null));
+    }
+
+    @Test
+    void nonJson2xxBodyThrowsApiException() throws Exception {
+        stubResponse(200, "Not JSON at all", "100", String.valueOf(Instant.now().plusSeconds(900).getEpochSecond()));
+
+        assertThrows(TwitterException.TwitterApiException.class, () ->
+                client.get(handle, "opId", "SearchTimeline", Map.of(), null));
+    }
+
+    @Test
     void rateLimitHeadersParsedIntoResponse() throws Exception {
         long resetEpoch = Instant.now().plusSeconds(300).getEpochSecond();
         stubResponse(200, "{\"data\":{}}", "42", String.valueOf(resetEpoch));

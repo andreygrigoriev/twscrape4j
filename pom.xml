@@ -15,6 +15,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <httpclient5.version>5.4.3</httpclient5.version>
+        <!-- Jackson 3.2.1 — confirmed GA on Maven Central (probed 3.0.0..3.2.1; 3.3.0 did not resolve).
+             Verify before releasing: https://central.sonatype.com/artifact/tools.jackson.core/jackson-databind -->
         <jackson.version>3.2.1</jackson.version>
         <conscrypt.version>2.5.2</conscrypt.version>
         <sqlite-jdbc.version>3.50.1.0</sqlite-jdbc.version>

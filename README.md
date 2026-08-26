@@ -113,6 +113,26 @@ The default is `SqliteAccountRepository("accounts.db")`.
 
 twscrape4j uses [Conscrypt](https://github.com/google/conscrypt) to register a BoringSSL-backed TLS provider, producing a browser-like JA3 fingerprint. When the Conscrypt native library is unavailable (e.g. on unsupported platforms), the library falls back to the JDK's default TLS stack with a warning.
 
+## Breaking changes / Migration notes
+
+### Jackson 3 (tools.jackson)
+
+This library uses Jackson 3.x (`tools.jackson.*`), not Jackson 2.x (`com.fasterxml.jackson.*`).
+The `*Raw` variants return `Stream<tools.jackson.databind.JsonNode>`. If you import `JsonNode`
+directly, update your import:
+
+```java
+// Jackson 2 (old):
+import com.fasterxml.jackson.databind.JsonNode;
+
+// Jackson 3 (required):
+import tools.jackson.databind.JsonNode;
+```
+
+Your Maven dependency on `tools.jackson.core:jackson-databind` must be version 3.x. Jackson 2
+(`com.fasterxml.jackson.core:jackson-databind`) is not compatible and will cause
+`NoClassDefFoundError` at runtime.
+
 ## Keeping operation IDs current
 
 Twitter's internal GraphQL operation IDs rotate periodically. The constants are defined in each operation class (e.g. `SearchTimelineOperation.OPERATION_ID`). Cross-reference with [twscrape's API source](https://github.com/vladkens/twscrape/blob/main/twscrape/api.py) when you encounter 400/404 errors on specific operations.
