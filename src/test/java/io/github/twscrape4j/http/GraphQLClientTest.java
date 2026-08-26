@@ -138,4 +138,38 @@ class GraphQLClientTest {
         assertEquals(42, result.rateLimitRemaining());
         assertEquals(resetEpoch, result.rateLimitResetAt().getEpochSecond());
     }
+
+    @Test
+    void nullEntityOn429ThrowsRateLimitedExceptionNotNpe() throws Exception {
+        long resetEpoch = Instant.now().plusSeconds(900).getEpochSecond();
+        doAnswer(inv -> {
+            HttpClientResponseHandler<Object> handler = inv.getArgument(1);
+            ClassicHttpResponse response = mock(ClassicHttpResponse.class);
+            when(response.getCode()).thenReturn(429);
+            when(response.getEntity()).thenReturn(null);
+            when(response.getFirstHeader("x-rate-limit-remaining")).thenReturn(null);
+            when(response.getFirstHeader("x-rate-limit-reset"))
+                    .thenReturn(new BasicHeader("x-rate-limit-reset", String.valueOf(resetEpoch)));
+            return handler.handleResponse(response);
+        }).when(httpClient).execute(any(), any(HttpClientResponseHandler.class));
+
+        assertThrows(TwitterException.RateLimitedException.class, () ->
+                client.get(handle, "opId", "SearchTimeline", Map.of(), null));
+    }
+
+    @Test
+    void nullEntityOn2xxDoesNotNpe() throws Exception {
+        doAnswer(inv -> {
+            HttpClientResponseHandler<Object> handler = inv.getArgument(1);
+            ClassicHttpResponse response = mock(ClassicHttpResponse.class);
+            when(response.getCode()).thenReturn(204);
+            when(response.getEntity()).thenReturn(null);
+            when(response.getFirstHeader(anyString())).thenReturn(null);
+            return handler.handleResponse(response);
+        }).when(httpClient).execute(any(), any(HttpClientResponseHandler.class));
+
+        // Null entity must not cause NullPointerException — the guard produces an empty body
+        // string; Jackson 3 readTree("") succeeds, so the call completes normally.
+        assertDoesNotThrow(() -> client.get(handle, "opId", "SearchTimeline", Map.of(), null));
+    }
 }

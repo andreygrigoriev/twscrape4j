@@ -39,6 +39,8 @@ public class TrendsOperation {
         try {
             var response = graphQLClient.get(handle, OPERATION_ID, OPERATION_NAME,
                     Map.of("categoryId", categoryId(category)), Map.of());
+            pool.updateRateLimit(handle.account().username(), OPERATION_NAME,
+                    response.rateLimitRemaining(), response.rateLimitResetAt());
             return parseTrendNodes(response.body());
         } finally {
             pool.release(handle);

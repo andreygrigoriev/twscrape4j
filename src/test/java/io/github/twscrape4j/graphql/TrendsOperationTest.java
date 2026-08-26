@@ -80,6 +80,21 @@ class TrendsOperationTest {
     }
 
     @Test
+    void fetchRawUpdatesRateLimitOnPool() throws Exception {
+        var graphResponse = response(trendsJson("Tech", 7500));
+        when(graphQLClient.get(any(), any(), any(), any(), any())).thenReturn(graphResponse);
+
+        var op = new TrendsOperation(graphQLClient);
+        op.fetchRaw(TrendCategory.TRENDING, pool);
+
+        verify(pool).updateRateLimit(
+                eq("alice"),
+                eq("ExplorePage"),
+                eq(graphResponse.rateLimitRemaining()),
+                eq(graphResponse.rateLimitResetAt()));
+    }
+
+    @Test
     void fetchReturnsEmptyListWhenNoTrends() throws Exception {
         String json = """
                 {"data":{"explore_page":{"body":{"initialTimeline":{"timeline":{"instructions":[]}}}}}}

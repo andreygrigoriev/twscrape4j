@@ -49,9 +49,8 @@ public class GraphQLClient {
 
             return handle.http().execute(request, response -> {
                 int status = response.getCode();
-                String body = new String(response.getEntity().getContent().readAllBytes());
 
-                // Parse rate limit headers
+                // Parse rate limit headers before reading the entity (no entity dependency)
                 Instant resetAt = parseResetAt(response);
                 int remaining = parseRemaining(response);
 
@@ -59,6 +58,10 @@ public class GraphQLClient {
                     log.warn("Rate limited for {} (account {})", operationName, handle.account().username());
                     throw new TwitterException.RateLimitedException(resetAt);
                 }
+
+                // Guard against null entity (e.g. 204 No Content or responses with no body)
+                var entity = response.getEntity();
+                String body = (entity != null) ? new String(entity.getContent().readAllBytes()) : "";
 
                 if (status < 200 || status >= 300) {
                     throw new TwitterException.TwitterApiException(status, body);

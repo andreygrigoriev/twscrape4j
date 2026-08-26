@@ -67,9 +67,18 @@ public class LoginClient {
             // Extract cookies from the HTTP client's cookie store
             String authToken = extractCookieFromClient("auth_token");
             String ct0 = extractCookieFromClient("ct0");
+            if (authToken.isEmpty() || ct0.isEmpty()) {
+                throw new IllegalStateException(
+                        "Cookie extraction failed after login for '" + username + "': " +
+                        "LoginClient requires an HttpClient backed by a BasicCookieStore. " +
+                        "Use HttpClientFactory with BasicCookieStore and read cookies from it " +
+                        "after login, or use CookieAccountFactory for cookie-based accounts.");
+            }
             return new Account(username, password, email, "", authToken, ct0,
                     null, true, true, null, null, 0L);
 
+        } catch (IllegalStateException e) {
+            throw e;
         } catch (TwitterException e) {
             throw e;
         } catch (Exception e) {
