@@ -75,19 +75,19 @@ pattern may want to show the no-arg form in their examples.
 - Create: `src/main/java/io/github/twscrape4j/accounts/InMemoryAccountRepository.java`
 - Create: `src/test/java/io/github/twscrape4j/accounts/InMemoryAccountRepositoryTest.java`
 
-- [ ] create `InMemoryAccountRepository` implementing `AccountRepository`
-- [ ] back with `ConcurrentHashMap<String, Account>` (no constructor args needed)
-- [ ] `save()` — `map.put(account.username(), account)`
-- [ ] `findByUsername()` — `Optional.ofNullable(map.get(username))`
-- [ ] `findActive()` — return snapshot list of entries where `account.active() == true`
-- [ ] `updateState()` — `map.put(account.username(), account)` (same as save; interface contract differs conceptually)
-- [ ] write tests: `save` then `findByUsername` round-trips correctly
-- [ ] write tests: `findByUsername` returns `Optional.empty()` for unknown username
-- [ ] write tests: `findActive` filters inactive accounts
-- [ ] write tests: `updateState` with `active=false` then `findActive()` does not return the account
-- [ ] write tests: `updateState` replaces entry without adding duplicates
-- [ ] write tests: concurrent save + findActive does not throw
-- [ ] run tests — must pass before task 2
+- [x] create `InMemoryAccountRepository` implementing `AccountRepository`
+- [x] back with `ConcurrentHashMap<String, Account>` (no constructor args needed)
+- [x] `save()` — `map.put(account.username(), account)`
+- [x] `findByUsername()` — `Optional.ofNullable(map.get(username))`
+- [x] `findActive()` — return snapshot list of entries where `account.active() == true`
+- [x] `updateState()` — `map.put(account.username(), account)` (same as save; interface contract differs conceptually)
+- [x] write tests: `save` then `findByUsername` round-trips correctly
+- [x] write tests: `findByUsername` returns `Optional.empty()` for unknown username
+- [x] write tests: `findActive` filters inactive accounts
+- [x] write tests: `updateState` with `active=false` then `findActive()` does not return the account
+- [x] write tests: `updateState` replaces entry without adding duplicates
+- [x] write tests: concurrent save + findActive does not throw
+- [x] run tests — must pass before task 2
 
 ### Task 2: Add no-arg TwScrape.create() factory overloads
 
@@ -95,26 +95,26 @@ pattern may want to show the no-arg form in their examples.
 - Modify: `src/main/java/io/github/twscrape4j/api/TwScrape.java`
 - Modify: `src/test/java/io/github/twscrape4j/api/TwScrapeTest.java`
 
-- [ ] add `TwScrape.create()` — delegates to `new TwScrape(new InMemoryAccountRepository(), ChallengeHandler.stdin())`
-- [ ] add `TwScrape.create(ChallengeHandler)` — delegates to `new TwScrape(new InMemoryAccountRepository(), challengeHandler)`
-- [ ] update class-level Javadoc to show both usage patterns (with and without repo)
-- [ ] write test: `TwScrape.create()` no-arg creates non-null instance
-- [ ] write test: `TwScrape.create(challengeHandler)` no-arg creates non-null instance
-- [ ] write test: `addAccountByCookies` then `accounts()` returns the account when using no-arg create
-- [ ] run tests — must pass before task 3
+- [x] add `TwScrape.create()` — delegates to `new TwScrape(new InMemoryAccountRepository(), ChallengeHandler.stdin())`
+- [x] add `TwScrape.create(ChallengeHandler)` — delegates to `new TwScrape(new InMemoryAccountRepository(), challengeHandler)`
+- [x] update class-level Javadoc to show both usage patterns (with and without repo)
+- [x] write test: `TwScrape.create()` no-arg creates non-null instance
+- [x] write test: `TwScrape.create(challengeHandler)` no-arg creates non-null instance
+- [x] write test: `addAccountByCookies` then `accounts()` returns the account when using no-arg create
+- [x] run tests — must pass before task 3
 
 ### Task 3: Verify acceptance criteria
 
-- [ ] verify `var scraper = TwScrape.create()` compiles and all operations are accessible
-- [ ] verify `addAccountByCookies` + `accounts()` works end-to-end with the in-memory repo
-- [ ] verify existing `TwScrape.create(repo)` and `TwScrape.create(repo, handler)` signatures unchanged
-- [ ] run full test suite: `mvn test`
+- [x] verify `var scraper = TwScrape.create()` compiles and all operations are accessible
+- [x] verify `addAccountByCookies` + `accounts()` works end-to-end with the in-memory repo
+- [x] verify existing `TwScrape.create(repo)` and `TwScrape.create(repo, handler)` signatures unchanged
+- [x] run full test suite: `mvn test` — 109 tests, 0 failures
 
 ### Task 4: Update README and move plan to completed
 
-- [ ] update README.md no-arg usage example if a "quick start" section exists
-- [ ] update CLAUDE.md if new patterns discovered
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update README.md no-arg usage example if a "quick start" section exists
+- [x] update CLAUDE.md if new patterns discovered
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 

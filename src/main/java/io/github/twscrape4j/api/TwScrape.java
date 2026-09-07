@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import io.github.twscrape4j.accounts.Account;
 import io.github.twscrape4j.accounts.AccountPool;
 import io.github.twscrape4j.accounts.AccountRepository;
+import io.github.twscrape4j.accounts.InMemoryAccountRepository;
 import io.github.twscrape4j.auth.ChallengeHandler;
 import io.github.twscrape4j.auth.CookieAccountFactory;
 import io.github.twscrape4j.auth.LoginClient;
@@ -25,6 +26,17 @@ import java.util.stream.StreamSupport;
 /**
  * Entry point for twscrape4j.
  *
+ * <p>Ephemeral (no database) usage:
+ * <pre>{@code
+ * try (var scraper = TwScrape.create()) {
+ *     scraper.addAccountByCookies("myuser", "auth_token_value", "ct0_value");
+ *     scraper.search("#java", SearchMode.LATEST)
+ *            .limit(100)
+ *            .forEach(System.out::println);
+ * }
+ * }</pre>
+ *
+ * <p>Persistent (SQLite-backed) usage:
  * <pre>{@code
  * var repo = new SqliteAccountRepository("accounts.db");
  * try (var scraper = TwScrape.create(repo)) {
@@ -80,6 +92,16 @@ public final class TwScrape implements AutoCloseable {
         this.userFollowingOp = new UserFollowingOperation(graphQLClient);
         this.listTimelineOp = new ListTimelineOperation(graphQLClient);
         this.listMembersOp = new ListMembersOperation(graphQLClient);
+    }
+
+    /** Creates an ephemeral scraper backed by an in-memory account store (no database required). */
+    public static TwScrape create() {
+        return new TwScrape(new InMemoryAccountRepository(), ChallengeHandler.stdin());
+    }
+
+    /** Creates an ephemeral scraper with a custom {@link ChallengeHandler} and in-memory account store. */
+    public static TwScrape create(ChallengeHandler challengeHandler) {
+        return new TwScrape(new InMemoryAccountRepository(), challengeHandler);
     }
 
     /** Creates a scraper using the default {@link ChallengeHandler#stdin()} for email verification. */

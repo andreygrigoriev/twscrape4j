@@ -11,9 +11,10 @@ Inspired by the Python library [twscrape](https://github.com/vladkens/twscrape).
 
 ## Quick start
 
+No database needed for one-off scripts:
+
 ```java
-var repo = new SqliteAccountRepository("accounts.db");
-try (var scraper = TwScrape.create(repo)) {
+try (var scraper = TwScrape.create()) {
 
     // Add account via browser cookies (recommended)
     scraper.addAccountByCookies("myuser", "auth_token_value", "ct0_value");
@@ -22,6 +23,15 @@ try (var scraper = TwScrape.create(repo)) {
     scraper.search("#java", SearchMode.LATEST)
            .limit(100)
            .forEach(tweet -> System.out.println(tweet.id() + " " + tweet.text()));
+}
+```
+
+For persistent sessions (accounts survive restart), use `SqliteAccountRepository`:
+
+```java
+var repo = new SqliteAccountRepository("accounts.db");
+try (var scraper = TwScrape.create(repo)) {
+    scraper.addAccountByCookies("myuser", "auth_token_value", "ct0_value");
 
     // User lookup
     scraper.userByLogin("username").ifPresent(user ->
@@ -107,7 +117,7 @@ class PostgresAccountRepository implements AccountRepository {
 }
 ```
 
-The default is `SqliteAccountRepository("accounts.db")`.
+Built-in implementations: `SqliteAccountRepository("accounts.db")` (persistent) and `InMemoryAccountRepository` (ephemeral, used by `TwScrape.create()`).
 
 ## TLS fingerprinting
 

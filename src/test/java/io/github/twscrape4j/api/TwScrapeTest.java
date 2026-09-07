@@ -20,6 +20,27 @@ class TwScrapeTest {
     }
 
     @Test
+    void createNoArg_returnsNonNull() {
+        assertNotNull(TwScrape.create());
+    }
+
+    @Test
+    void createNoArgWithChallengeHandler_returnsNonNull() {
+        ChallengeHandler handler = (type, prompt) -> "123456";
+        assertNotNull(TwScrape.create(handler));
+    }
+
+    @Test
+    void createNoArg_addAccountByCookies_thenAccounts_roundTrips() {
+        var scraper = TwScrape.create();
+        scraper.addAccountByCookies("inMemUser", "tok", "ct0");
+        var accounts = scraper.accounts();
+        assertEquals(1, accounts.size());
+        assertEquals("inMemUser", accounts.get(0).username());
+        assertEquals("tok", accounts.get(0).authToken());
+    }
+
+    @Test
     void createWithDefaultChallengeHandler() {
         var scraper = TwScrape.create(emptyRepo());
         assertNotNull(scraper);
