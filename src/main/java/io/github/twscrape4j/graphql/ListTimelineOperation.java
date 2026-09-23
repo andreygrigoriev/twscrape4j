@@ -10,7 +10,7 @@ import java.util.Map;
 
 public class ListTimelineOperation {
 
-    private static final String OPERATION_ID = "BbGLL1ZfMibdFNWlk7a0Pw";
+    private static final String OPERATION_ID = "1LE3u14FJjPZUHKFGzos2g";
     private static final String OPERATION_NAME = "ListLatestTweetsTimeline";
 
     private final GraphQLClient graphQLClient;

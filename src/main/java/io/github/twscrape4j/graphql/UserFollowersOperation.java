@@ -12,7 +12,7 @@ import java.util.Map;
 
 public class UserFollowersOperation {
 
-    private static final String OPERATION_ID = "rRXFSG5vR6drKr5M25LsfQ";
+    private static final String OPERATION_ID = "JNyQdTISpzCkj_1fqxDvFg";
     private static final String OPERATION_NAME = "Followers";
 
     private final GraphQLClient graphQLClient;
@@ -35,7 +35,8 @@ public class UserFollowersOperation {
             vars.put("includePromotedContent", false);
             if (cursor != null) vars.put("cursor", cursor);
 
-            var response = graphQLClient.get(handle, OPERATION_ID, OPERATION_NAME, vars, Map.of());
+            var response = graphQLClient.get(handle, OPERATION_ID, OPERATION_NAME, vars,
+                    Map.of("responsive_web_twitter_article_notes_tab_enabled", false));
             pool.updateRateLimit(handle.account().username(), OPERATION_NAME,
                     response.rateLimitRemaining(), response.rateLimitResetAt());
             return parseUsers(response.body());

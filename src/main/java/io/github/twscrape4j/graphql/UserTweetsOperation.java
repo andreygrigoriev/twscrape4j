@@ -10,7 +10,7 @@ import java.util.Map;
 
 public class UserTweetsOperation {
 
-    private static final String OPERATION_ID = "V1ze5q3ijDS1VeLwLY0m7g";
+    private static final String OPERATION_ID = "SXVCYB8XHSS25nzIljNtZA";
     private static final String OPERATION_NAME = "UserTweets";
 
     private final GraphQLClient graphQLClient;

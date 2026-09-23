@@ -13,8 +13,10 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -24,6 +26,7 @@ class GraphQLClientTest {
     private CloseableHttpClient httpClient;
     private AccountHandle handle;
     private GraphQLClient client;
+    private AtomicInteger transactionLoads;
 
     @BeforeEach
     void setUp() {
@@ -31,7 +34,11 @@ class GraphQLClientTest {
         var account = new Account("alice", "pass", "e@t.com", "ep",
                 "auth_tok", "ct0_val", null, true, true, null, null, 0L);
         handle = new AccountHandle(account, httpClient);
-        client = new GraphQLClient();
+        transactionLoads = new AtomicInteger();
+        client = new GraphQLClient(h -> {
+            transactionLoads.incrementAndGet();
+            return new ClientTransaction(new int[48], "key");
+        }, Duration.ZERO);
     }
 
     @SuppressWarnings("unchecked")
@@ -60,7 +67,7 @@ class GraphQLClientTest {
         String json = "{\"data\":{\"search_by_raw_query\":{\"search_timeline\":{\"timeline\":{}}}}}";
         stubResponse(200, json, "450", String.valueOf(Instant.now().plusSeconds(900).getEpochSecond()));
 
-        var result = client.get(handle, "nK1dw4oV3k4w5TdtcAdSww", "SearchTimeline",
+        var result = client.get(handle, "hyPfJYJ_XAtDYoslQc-Rgg", "SearchTimeline",
                 Map.of("rawQuery", "#java"), null);
 
         assertNotNull(result.body());
@@ -171,5 +178,75 @@ class GraphQLClientTest {
         // Null entity must not cause NullPointerException — the guard produces an empty body
         // string; Jackson 3 readTree("") succeeds, so the call completes normally.
         assertDoesNotThrow(() -> client.get(handle, "opId", "SearchTimeline", Map.of(), null));
+    }
+
+    @Test
+    void requestCarriesTransactionIdAndMergedFeatures() throws Exception {
+        stubResponse(200, "{\"data\":{}}", null, null);
+
+        client.get(handle, "opId", "SearchTimeline", Map.of(), Map.of("custom_flag", true));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(org.apache.hc.core5.http.ClassicHttpRequest.class);
+        verify(httpClient).execute(captor.capture(), any(HttpClientResponseHandler.class));
+        var request = captor.getValue();
+        assertNotNull(request.getFirstHeader("x-client-transaction-id"));
+        String query = java.net.URLDecoder.decode(request.getUri().getRawQuery(), StandardCharsets.UTF_8);
+        assertTrue(query.contains("\"custom_flag\":true"));
+        assertTrue(query.contains("\"responsive_web_graphql_exclude_directive_enabled\":true"));
+    }
+
+    @Test
+    void transactionIsCachedPerAccount() throws Exception {
+        stubResponse(200, "{\"data\":{}}", null, null);
+
+        client.get(handle, "opId", "Op", Map.of(), null);
+        client.get(handle, "opId", "Op", Map.of(), null);
+
+        assertEquals(1, transactionLoads.get());
+    }
+
+    @Test
+    void http404RetriesWithFreshTransactionThenSucceeds() throws Exception {
+        var calls = new AtomicInteger();
+        doAnswer(inv -> {
+            HttpClientResponseHandler<Object> handler = inv.getArgument(1);
+            ClassicHttpResponse response = mock(ClassicHttpResponse.class);
+            int status = calls.incrementAndGet() == 1 ? 404 : 200;
+            when(response.getCode()).thenReturn(status);
+            HttpEntity entity = mock(HttpEntity.class);
+            String body = status == 200 ? "{\"data\":{}}" : "";
+            when(entity.getContent()).thenReturn(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
+            when(response.getEntity()).thenReturn(entity);
+            when(response.getFirstHeader(anyString())).thenReturn(null);
+            return handler.handleResponse(response);
+        }).when(httpClient).execute(any(), any(HttpClientResponseHandler.class));
+
+        var result = client.get(handle, "opId", "SearchTimeline", Map.of(), null);
+
+        assertTrue(result.body().has("data"));
+        assertEquals(2, calls.get());
+        assertEquals(2, transactionLoads.get());
+    }
+
+    @Test
+    void persistent404GivesUpAfterThreeAttempts() throws Exception {
+        stubResponse(404, "", null, null);
+
+        var e = assertThrows(TwitterException.TwitterApiException.class, () ->
+                client.get(handle, "opId", "SearchTimeline", Map.of(), null));
+
+        assertEquals(404, e.code());
+        verify(httpClient, times(3)).execute(any(), any(HttpClientResponseHandler.class));
+    }
+
+    @Test
+    void transactionLoadFailureIsReported() {
+        var failing = new GraphQLClient(h -> {
+            throw new TwitterException("X verification key not found");
+        }, Duration.ZERO);
+
+        var e = assertThrows(TwitterException.class, () ->
+                failing.get(handle, "opId", "SearchTimeline", Map.of(), null));
+        assertTrue(e.getMessage().contains("x-client-transaction-id"));
     }
 }
