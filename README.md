@@ -20,9 +20,12 @@ The project is a multi-module Maven build:
 
 ```bash
 ./mvnw verify                  # build and test all modules
-./mvnw -pl core install        # build and install only the library
+./mvnw -pl core -am install    # install the library and its parent POM (twscrape4j-parent) to ~/.m2
 ./mvnw -pl cli -am package     # build the CLI (and core); produces cli/target/twscrape4j-cli-<version>-all.jar
 ```
+
+The library POM inherits from `twscrape4j-parent`, so consumers resolving it from a repository need the
+parent POM there too (`-am` installs it; a plain `-pl core install` does not).
 
 The library artifact has no dependency on picocli, slf4j-simple or the native-image setup; those
 live only in `cli/`.
@@ -82,11 +85,17 @@ Export `auth_token` and `ct0` from your browser's cookie store for `x.com`, then
 scraper.addAccountByCookies("username", "auth_token_value", "ct0_value");
 ```
 
-### Username/password login
+### Username/password login (best-effort)
 
 ```java
 scraper.addAccount("username", "password", "email@example.com");
 ```
+
+Login mode is best-effort: it replays X's undocumented onboarding flow, answering whichever step
+X asks for next (JS instrumentation, username, alternate identifier/email, password, duplicate
+account check, email or 2FA code). X changes this flow without notice, and steps it does not
+recognize (for example a captcha) fail with `LoginFailedException`. It cannot be tested against
+the real service offline, so prefer cookie-based accounts whenever possible.
 
 If Twitter sends an email verification code, the default handler reads it from stdin.
 To handle it programmatically:
@@ -135,6 +144,10 @@ twscrape user @jack --format json
 twscrape tweets @jack --limit -1 > tweets.jsonl
 ```
 
+`twscrape` in these examples is the [native executable](#native-executable). Without it, use the
+[shaded jar](#running-on-the-jvm) (`alias twscrape='java -jar cli/target/twscrape4j-cli-*-all.jar'`)
+or the [Docker image](#docker) (`docker run --rm -e TWSCRAPE_AUTH_TOKEN -e TWSCRAPE_CT0 twscrape4j-cli`).
+
 ### Commands
 
 | Command                                                        | Library call      | Result |
@@ -158,6 +171,10 @@ A `<user>` argument is either a numeric user ID or `@login`; a login is resolved
 error. Tweet, user and list IDs must be positive numbers. `--mode` and `--category` values are
 case-insensitive.
 
+A search query that starts with `-` would be parsed as an option (and fail with a misleading
+"Missing required parameter" usage error). End the options with `--` first:
+`twscrape search --mode top -- "-filter:replies java"`.
+
 Options shared by every data command:
 
 | Option                | Description                                                                                 |
@@ -167,10 +184,16 @@ Options shared by every data command:
 | `--raw`               | print the raw GraphQL JSON from the `*Raw` API methods instead of the mapped model           |
 | `-v, --verbose`       | debug logging for `io.github.twscrape4j` on stderr, plus stack traces on errors. Accepted before or after the subcommand |
 
-The root command also has `-h/--help` and `-V/--version`; every subcommand has `-h/--help`.
+Every command, including the root, has `-h/--help` and `-V/--version`.
 
-stdout carries data only. Logs and error messages (`error: <message>`) go to stderr. With
-`--verbose`, HTTP client logging stays quiet on purpose: it would print the account cookies.
+stdout carries data only. Logs and error messages (`error: <message>`, always a single line; long
+messages are cut) go to stderr. With `--verbose`, HTTP client logging stays quiet on purpose: it
+would print the account cookies. If stdout cannot be written (the reader of a pipe exited, the disk
+is full), the command stops fetching further pages and exits 1.
+
+When the account hits a rate limit mid-pagination, the library waits until the limit resets (up to
+about 15 minutes) before fetching the next page. The wait is logged only at debug level, so without
+`-v` a long-running stream can look hung; use `--limit` to keep runs short.
 
 ### Account configuration (environment)
 
@@ -183,20 +206,31 @@ stdout carries data only. Logs and error messages (`error: <message>`) go to std
 | `TWSCRAPE_EMAIL`          | email (login mode)                                                                |
 | `TWSCRAPE_CHALLENGE_CODE` | email verification code for non-interactive login                                 |
 
+Cookie mode is recommended. Login mode is best-effort and may break whenever X changes its login
+flow (see [Username/password login](#usernamepassword-login-best-effort)).
+
 If both cookie variables are set, cookie mode is used. Otherwise, if username, password and email
 are all set, the CLI logs in. Anything else, including only one of the two cookie variables, fails
-with exit code 3. Blank values count as unset.
+with exit code 3. Blank values count as unset; values are trimmed, except `TWSCRAPE_PASSWORD`,
+which is used verbatim.
 
 When the login flow asks for a verification code, the CLI uses `TWSCRAPE_CHALLENGE_CODE`, or
-prompts on the terminal (never on stdout). Without a terminal, for example when stdout is piped,
-set `TWSCRAPE_CHALLENGE_CODE` or the run fails with exit code 3.
+prompts interactively through `java.io.Console`. The console writes the prompt to the terminal
+(file descriptor 1), so the CLI prompts only when both stdin and stdout are a terminal; the prompt
+therefore never ends up in piped or redirected output. Without a terminal, for example when stdout
+is piped, set `TWSCRAPE_CHALLENGE_CODE` or the run fails with exit code 3.
+
+Cookie mode does not check the cookies up front: expired or invalid cookies surface on the first
+request as an API error (HTTP 401/403) and exit with code 1, not 3.
 
 ### Output schema
 
 Typed output is built explicitly (not by reflection over the model records). IDs are strings,
 because Twitter IDs exceed 2^53 and would lose precision in JavaScript and `jq`. Timestamps are
-ISO-8601 strings. Null fields are omitted, and the raw GraphQL payload is never included (use
-`--raw` for that).
+ISO-8601 strings. Absent fields (null, empty strings, and the epoch placeholder for a missing date)
+are omitted, and the raw GraphQL payload is never included (use `--raw` for that). A tweet's
+`conversationId` is omitted when it is `0` (missing), and its `url` is omitted when the author or the
+author's username is missing.
 
 ```json
 // Tweet
@@ -219,10 +253,10 @@ already written stay, and the command still exits 1.
 | Code | Meaning                                                                                  |
 |------|------------------------------------------------------------------------------------------|
 | 0    | success (including an empty stream)                                                      |
-| 1    | runtime / API error (`TwitterException`, network or I/O, also during login)              |
-| 2    | usage error (bad arguments or options)                                                   |
+| 1    | runtime / API error (`TwitterException`, network or I/O, also during login; expired or invalid cookies) |
+| 2    | usage error (bad arguments or options, e.g. a blank query or an invalid login)             |
 | 3    | configuration / auth error (missing or partial env, login rejected, no challenge code)   |
-| 4    | not found (`tweet`, `user` or `user-by-id` found nothing, or a `@login` did not resolve)  |
+| 4    | not found (`tweet`, `user` or `user-by-id` found nothing or an unavailable user, or a `@login` did not resolve) |
 
 ### Running on the JVM
 
@@ -235,15 +269,18 @@ The CLI omits Conscrypt, SQLite and jOOQ from its dependencies and uses the JDK 
 
 ### Native executable
 
-With GraalVM 25 (`native-image` on the `PATH`, `JAVA_HOME` pointing at GraalVM):
+With GraalVM 25 (`native-image` on the `PATH`, `JAVA_HOME` pointing at GraalVM), on Linux, macOS or
+Windows:
 
 ```bash
 ./mvnw -Pnative -pl cli -am package
 cli/target/twscrape --help
 ```
 
-The binary links only glibc dynamically (`--static-nolibc`) and is built with
-`-march=compatibility`, so it runs on any CPU of the build architecture.
+The binary is built with `-march=compatibility`, so it runs on any CPU of the build architecture.
+On Linux the OS-activated `native-linux` profile adds `--static-nolibc`, so only glibc is linked
+dynamically (as the distroless Docker image requires). That mode is Linux-only; on macOS and
+Windows the binary is a regular dynamically linked executable. Use Docker for a Linux binary.
 
 ### Docker
 
@@ -254,12 +291,27 @@ is needed. The resulting image is about 81 MB and runs as the non-root user (uid
 ```bash
 docker build -t twscrape4j-cli .
 docker run --rm -e TWSCRAPE_AUTH_TOKEN -e TWSCRAPE_CT0 twscrape4j-cli search "java" | jq
+
+# login mode; -it lets the CLI prompt for a verification code (or pass TWSCRAPE_CHALLENGE_CODE)
+docker run --rm -it -e TWSCRAPE_USERNAME -e TWSCRAPE_PASSWORD -e TWSCRAPE_EMAIL \
+  [-e TWSCRAPE_CHALLENGE_CODE] twscrape4j-cli user @jack
 ```
+
+Without `-it` the container has no terminal, so login mode needs `TWSCRAPE_CHALLENGE_CODE` when X
+asks for a code. With `-t`, stdout is a terminal too, so do not combine an interactive login with
+piping the output.
 
 - The image is built for the build host's architecture (for example arm64 on Apple Silicon).
 - The native-image builder needs a few GB of memory. On a small VM, cap its heap with
   `--build-arg NATIVE_IMAGE_OPTIONS=-J-Xmx2800m`.
 - Podman works the same way (`podman build`, `podman run`).
+- The `org.opencontainers.image.version` label defaults to `0.1.0-SNAPSHOT` and is not read from the
+  POM; set it for releases with `--build-arg VERSION=<version>`.
+- Both base images are pinned by digest (`image:tag@sha256:...`). When updating them, update both
+  together: the binary links the builder's glibc dynamically, and the runtime stage runs
+  `twscrape --version` to catch an incompatible glibc at build time.
+- `.dockerignore` excludes `.env` files, keys and cookie files; keep credentials out of the build
+  context anyway, since `COPY . .` copies everything else into the builder.
 
 ## Custom storage
 

@@ -6,11 +6,16 @@
 #
 # The image arch follows the build host (arm64 on Apple Silicon). On hosts with little memory,
 # cap the native-image builder heap, e.g. --build-arg NATIVE_IMAGE_OPTIONS=-J-Xmx2800m
+# The image version label is not derived from the POM: pass it for releases, e.g.
+#   docker build --build-arg VERSION=0.1.0 -t twscrape4j-cli .
+#
+# Base images are pinned by multi-arch index digest (the tag is kept for readability). The binary
+# links glibc dynamically, so bump both digests together and keep the runtime smoke check below.
 
 # ---------------------------------------------------------------------------------------------
 # Builder: compile the native executable and smoke-test it
 # ---------------------------------------------------------------------------------------------
-FROM ghcr.io/graalvm/native-image-community:25 AS builder
+FROM ghcr.io/graalvm/native-image-community:25@sha256:0d936f32bb8acb5bc60c41b33e05f064d7a6aaf36b726538296c54949bd4a3c0 AS builder
 
 # mvnw (only-script distribution) needs unzip to unpack Maven; curl is already in the image.
 RUN microdnf install -y tar gzip unzip && microdnf clean all
@@ -41,7 +46,9 @@ RUN set -eu; B=/src/cli/target/twscrape; \
     ldd "$B" | tee /tmp/ldd.txt; \
     if grep -q 'not found' /tmp/ldd.txt; then echo 'unresolved shared library'; exit 1; fi
 
-# No network: exercises HttpClientFactory static init (Conscrypt fallback) and JDK TLS setup.
+# No network: exercises HttpClientFactory static init (Conscrypt fallback), JDK TLS socket factory
+# construction and the network error path. DNS fails before any TLS handshake, and no JSON is
+# written, so ModelJson/JsonOutput serialization is not covered by these smoke checks.
 RUN --network=none set -eu; B=/src/cli/target/twscrape; \
     echo '--- no network -> exit 1'; \
     rc=0; env -i TWSCRAPE_AUTH_TOKEN=x TWSCRAPE_CT0=y "$B" user @jack > /dev/null 2> /tmp/err.txt || rc=$?; \
@@ -51,7 +58,7 @@ RUN --network=none set -eu; B=/src/cli/target/twscrape; \
 # ---------------------------------------------------------------------------------------------
 # Runtime: distroless glibc + CA certificates, non-root, no shell
 # ---------------------------------------------------------------------------------------------
-FROM gcr.io/distroless/base-debian12:nonroot
+FROM gcr.io/distroless/base-debian12:nonroot@sha256:7f0c72cd138b442ae0deeb69c08b1acf5525439ba251a49ad93c320a061567e5
 
 ARG VERSION=0.1.0-SNAPSHOT
 ARG SOURCE=https://github.com/twscrape4j/twscrape4j
@@ -64,5 +71,9 @@ LABEL org.opencontainers.image.title="twscrape4j-cli" \
       org.opencontainers.image.licenses="${LICENSES}"
 
 COPY --from=builder /src/cli/target/twscrape /usr/local/bin/twscrape
+
+# Exec form (distroless has no shell): fails the build if the binary cannot load against this
+# image's glibc (e.g. a missing GLIBC_x.y symbol after a base image update).
+RUN ["/usr/local/bin/twscrape", "--version"]
 
 ENTRYPOINT ["/usr/local/bin/twscrape"]

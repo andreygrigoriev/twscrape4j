@@ -89,4 +89,16 @@ class ModelJsonTest {
         assertEquals("{\"name\":\"#java\",\"tweetCount\":1000}",
                 MAPPER.writeValueAsString(ModelJson.trend(new Trend("#java", 1000, null))));
     }
+
+    @Test
+    void mapperPlaceholdersForMissingFieldsAreOmitted() {
+        // core ModelMapper yields "" for missing strings and Instant.EPOCH for missing dates
+        var author = new User(5L, "", "", "", 0, 0, false, Instant.EPOCH, null);
+        var tweet = new Tweet(123L, "", author, Instant.EPOCH, null, "", 0L, null);
+
+        JsonNode node = ModelJson.tweet(tweet);
+
+        assertEquals("{\"id\":\"123\",\"author\":{\"id\":\"5\",\"followers\":0,\"following\":0,"
+                + "\"verified\":false}}", MAPPER.writeValueAsString(node));
+    }
 }

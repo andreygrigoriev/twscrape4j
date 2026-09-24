@@ -21,6 +21,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -46,7 +47,7 @@ class ExitCodeMappingTest {
         }
 
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
+        protected void run(TwScrape scraper) {
             this.scraper = scraper;
             action.accept(this);
         }
@@ -152,6 +153,35 @@ class ExitCodeMappingTest {
         }, "stub", "--limit", "0"));
         assertTrue(err.toString().contains("--limit"), err.toString());
         verifyNoInteractions(scraper);
+    }
+
+    @Test
+    void closeFailureAfterSuccessExitsOne() {
+        doThrow(new IllegalStateException("close failed")).when(scraper).close();
+        assertEquals(ExitCodes.RUNTIME, run(c -> c.scraper.accounts(), "stub"));
+        assertEquals("error: close failed", err.toString().strip());
+    }
+
+    @Test
+    void closeFailureDuringErrorIsSuppressedAndKeepsExitCode() {
+        doThrow(new IllegalStateException("close failed")).when(scraper).close();
+        var notFound = new NotFoundException("tweet 1 not found");
+        assertEquals(ExitCodes.NOT_FOUND, run(throwing(notFound), "stub"));
+        assertEquals("error: tweet 1 not found", err.toString().strip());
+        assertEquals("close failed", notFound.getSuppressed()[0].getMessage());
+    }
+
+    @Test
+    void dataCommandOutsideTwscrapeRootFails() {
+        var cmd = new CommandLine(new StubCommand(c -> {
+            throw new AssertionError("must not run");
+        }));
+        cmd.setCaseInsensitiveEnumValuesAllowed(true);
+        cmd.setErr(new PrintWriter(err, true));
+        // no TwScrapeCli handler here: picocli reports the unhandled exception with its stack trace
+        assertEquals(ExitCodes.RUNTIME, cmd.execute(), err.toString());
+        assertTrue(err.toString().contains("IllegalStateException"), err.toString());
+        assertTrue(err.toString().contains("data command stub is not attached"), err.toString());
     }
 
     // ---- stack traces ----

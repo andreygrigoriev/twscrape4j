@@ -18,10 +18,15 @@ public class VersionProvider implements IVersionProvider {
     }
 
     static String version() {
-        try (InputStream in = VersionProvider.class.getResourceAsStream(RESOURCE)) {
-            if (in == null) {
-                return "unknown";
-            }
+        return version(VersionProvider.class.getResourceAsStream(RESOURCE));
+    }
+
+    /** Reads {@code version} from {@code in} (closed afterwards); {@code "unknown"} when missing. */
+    static String version(InputStream in) {
+        if (in == null) {
+            return "unknown";
+        }
+        try (in) {
             var props = new Properties();
             props.load(in);
             return props.getProperty("version", "unknown");

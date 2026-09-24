@@ -8,6 +8,7 @@ import io.github.twscrape4j.http.TwitterException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -101,5 +102,13 @@ class SearchCommandTest {
         assertEquals("error: rate limited", cli.err().strip());
         assertEquals("", cli.out());
         verify(scraper).close();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void blankQueryIsUsageError(String query) {
+        assertEquals(ExitCodes.USAGE, cli.run("search", query));
+        assertTrue(cli.err().contains("must not be blank"), cli.err());
+        verifyNoInteractions(scraper);
     }
 }

@@ -3,6 +3,7 @@ package io.github.twscrape4j.http;
 import io.github.twscrape4j.accounts.Account;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.cookie.BasicCookieStore;
+import org.apache.hc.client5.http.cookie.CookieStore;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.cookie.BasicClientCookie;
@@ -44,7 +45,14 @@ public class HttpClientFactory {
     }
 
     public CloseableHttpClient buildClient(Account account) {
-        var cookieStore = new BasicCookieStore();
+        return buildClient(account, new BasicCookieStore());
+    }
+
+    /**
+     * Builds a client that keeps its cookies in {@code cookieStore}, seeded with the account's
+     * {@code auth_token}/{@code ct0}; callers read cookies set by responses (e.g. after login) from the store.
+     */
+    public CloseableHttpClient buildClient(Account account, CookieStore cookieStore) {
         addCookie(cookieStore, "auth_token", account.authToken());
         addCookie(cookieStore, "ct0", account.ct0());
 
@@ -88,7 +96,7 @@ public class HttpClientFactory {
                 .build();
     }
 
-    private void addCookie(BasicCookieStore store, String name, String value) {
+    private void addCookie(CookieStore store, String name, String value) {
         if (value == null || value.isBlank()) return;
         var cookie = new BasicClientCookie(name, value);
         cookie.setDomain(".x.com");

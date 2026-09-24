@@ -5,9 +5,13 @@ import io.github.twscrape4j.cli.CliHarness;
 import io.github.twscrape4j.cli.ExitCodes;
 import io.github.twscrape4j.http.TwitterException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
 
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -69,6 +73,30 @@ class UserCommandsTest {
         assertEquals("", cli.out());
     }
 
+    @Test
+    void userRawEmptyExitsFour() {
+        when(scraper.userByLoginRaw("ghost")).thenReturn(Optional.empty());
+        assertEquals(ExitCodes.NOT_FOUND, cli.run("user", "@ghost", "--raw"));
+        assertEquals("error: user @ghost not found", cli.err().strip());
+        assertEquals("", cli.out());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " ", "@", "a b", "@jack@", "jack!"})
+    void userRejectsInvalidLogin(String login) {
+        assertEquals(ExitCodes.USAGE, cli.run("user", login));
+        assertTrue(cli.err().contains("not a valid login"), cli.err());
+        verifyNoInteractions(scraper);
+    }
+
+    @Test
+    void unavailableUserWithoutIdIsNotFound() {
+        when(scraper.userByLogin("suspended")).thenReturn(Optional.of(user(0, "suspended")));
+        assertEquals(ExitCodes.NOT_FOUND, cli.run("user", "@suspended"));
+        assertEquals("error: user @suspended not found", cli.err().strip());
+        assertEquals("", cli.out());
+    }
+
     // ---- user-by-id ----
 
     @Test
@@ -95,6 +123,12 @@ class UserCommandsTest {
     }
 
     @Test
+    void userByIdUnavailableUserIsNotFound() {
+        when(scraper.userById(42)).thenReturn(Optional.of(user(0, "")));
+        assertEquals(ExitCodes.NOT_FOUND, cli.run("user-by-id", "42"));
+    }
+
+    @Test
     void userByIdRejectsInvalidId() {
         assertEquals(ExitCodes.USAGE, cli.run("user-by-id", "@jack"));
         verifyNoInteractions(scraper);
@@ -111,25 +145,70 @@ class UserCommandsTest {
         verify(scraper, never()).userTweetsRaw(anyLong());
     }
 
-    @Test
-    void tweetsByLoginResolvesOnceBeforeStream() {
-        when(scraper.userByLogin("jack")).thenReturn(Optional.of(user(42, "jack")));
-        when(scraper.userTweets(42)).thenReturn(Stream.of(tweet(1)));
-        assertEquals(ExitCodes.OK, cli.run("tweets", "@jack"));
-        assertEquals("{\"id\":\"1\",\"text\":\"t1\"}\n", cli.out());
-        InOrder order = inOrder(scraper);
-        order.verify(scraper, times(1)).userByLogin("jack");
-        order.verify(scraper).userTweets(42);
+    /** The four {@code <user>} commands with their typed and raw stream calls. */
+    enum UserRefCase {
+        TWEETS("tweets", s -> s.userTweets(anyLong()), s -> s.userTweetsRaw(anyLong())),
+        MEDIA("media", s -> s.userMedia(anyLong()), s -> s.userMediaRaw(anyLong())),
+        FOLLOWERS("followers", s -> s.userFollowers(anyLong()), s -> s.userFollowersRaw(anyLong())),
+        FOLLOWING("following", s -> s.userFollowing(anyLong()), s -> s.userFollowingRaw(anyLong()));
+
+        final String command;
+        final Consumer<TwScrape> typed;
+        final Consumer<TwScrape> raw;
+
+        UserRefCase(String command, Consumer<TwScrape> typed, Consumer<TwScrape> raw) {
+            this.command = command;
+            this.typed = typed;
+            this.raw = raw;
+        }
     }
 
-    @Test
-    void unknownLoginExitsFourWithoutStreamCall() {
+    @ParameterizedTest
+    @EnumSource(UserRefCase.class)
+    void loginIsResolvedOnceBeforeStream(UserRefCase c) {
+        when(scraper.userByLogin("jack")).thenReturn(Optional.of(user(42, "jack")));
+        when(scraper.userTweets(42)).thenReturn(Stream.of(tweet(1)));
+        when(scraper.userMedia(42)).thenReturn(Stream.of(tweet(1)));
+        when(scraper.userFollowers(42)).thenReturn(Stream.of(user(1, "a")));
+        when(scraper.userFollowing(42)).thenReturn(Stream.of(user(1, "a")));
+
+        assertEquals(ExitCodes.OK, cli.run(c.command, "@jack"));
+
+        assertTrue(cli.out().startsWith("{\"id\":\"1\""), cli.out());
+        InOrder order = inOrder(scraper);
+        order.verify(scraper, times(1)).userByLogin("jack");
+        c.typed.accept(order.verify(scraper));
+    }
+
+    @ParameterizedTest
+    @EnumSource(UserRefCase.class)
+    void unknownLoginExitsFourWithoutStreamCall(UserRefCase c) {
         when(scraper.userByLogin("ghost")).thenReturn(Optional.empty());
-        assertEquals(ExitCodes.NOT_FOUND, cli.run("followers", "@ghost"));
+        assertEquals(ExitCodes.NOT_FOUND, cli.run(c.command, "@ghost"));
         assertEquals("error: user @ghost not found", cli.err().strip());
         assertEquals("", cli.out());
-        verify(scraper, never()).userFollowers(anyLong());
-        verify(scraper, never()).userFollowersRaw(anyLong());
+        c.typed.accept(verify(scraper, never()));
+        c.raw.accept(verify(scraper, never()));
+    }
+
+    @ParameterizedTest
+    @EnumSource(UserRefCase.class)
+    void unavailableLoginWithoutIdExitsFour(UserRefCase c) {
+        when(scraper.userByLogin("suspended")).thenReturn(Optional.of(user(0, "suspended")));
+        assertEquals(ExitCodes.NOT_FOUND, cli.run(c.command, "@suspended"));
+        assertEquals("error: user @suspended not found", cli.err().strip());
+        c.typed.accept(verify(scraper, never()));
+    }
+
+    @ParameterizedTest
+    @EnumSource(UserRefCase.class)
+    void loginLookupFailureExitsOneWithoutStreamCall(UserRefCase c) {
+        when(scraper.userByLogin("jack")).thenThrow(new TwitterException("lookup failed"));
+        assertEquals(ExitCodes.RUNTIME, cli.run(c.command, "@jack"));
+        assertEquals("error: lookup failed", cli.err().strip());
+        c.typed.accept(verify(scraper, never()));
+        c.raw.accept(verify(scraper, never()));
+        verify(scraper).close();
     }
 
     @Test

@@ -9,11 +9,8 @@ import org.slf4j.helpers.NOPLoggerFactory;
 import org.slf4j.simple.SimpleLoggerFactory;
 import picocli.CommandLine;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -37,6 +34,7 @@ class TwScrapeCliTest {
     @AfterEach
     void clearVerboseProperty() {
         System.clearProperty(TwScrapeCli.VERBOSE_LOG_PROPERTY);
+        System.clearProperty(TwScrapeCli.HTTP_CLIENT_FACTORY_LOG_PROPERTY);
     }
 
     // ---- root command ----
@@ -78,6 +76,10 @@ class TwScrapeCliTest {
 
     // ---- dependency exclusions ----
 
+    /**
+     * Checks the cli module's resolved dependencies (the Maven test classpath). The shaded {@code -all.jar} is built
+     * from the same runtime dependencies, and the Docker build smoke-tests the native binary built from them.
+     */
     @ParameterizedTest
     @ValueSource(strings = {"org.sqlite.JDBC", "org.jooq.DSLContext", "org.conscrypt.Conscrypt"})
     void excludedDependenciesAreNotOnClasspath(String className) {
@@ -103,6 +105,12 @@ class TwScrapeCliTest {
     }
 
     @Test
+    void preScanDetectsVerboseWithAttachedValue() {
+        assertTrue(TwScrapeCli.isVerbose(new String[]{"search", "--verbose=true", "java"}));
+        assertFalse(TwScrapeCli.isVerbose(new String[]{"search", "--verbose=false", "java"}));
+    }
+
+    @Test
     void preScanStopsAtDoubleDash() {
         assertFalse(TwScrapeCli.isVerbose(new String[]{"search", "--", "-v"}));
     }
@@ -124,18 +132,9 @@ class TwScrapeCliTest {
     }
 
     @Test
-    void conscryptFallbackWarningIsNotPrinted() throws Exception {
-        PrintStream original = System.err;
-        var captured = new ByteArrayOutputStream();
-        System.setErr(new PrintStream(captured, true, StandardCharsets.UTF_8));
-        try {
-            assertEquals(0, run("--help"));
-            // static initializer tries Conscrypt, which is excluded, and logs the fallback at WARN
-            Class.forName("io.github.twscrape4j.http.HttpClientFactory", true, getClass().getClassLoader());
-        } finally {
-            System.setErr(original);
-        }
-        assertFalse(captured.toString(StandardCharsets.UTF_8).contains("Conscrypt"), captured.toString());
+    void conscryptFallbackWarningIsNotPrinted() {
+        // HttpClientFactory's static initializer logs the (expected) Conscrypt fallback at WARN; whether it already
+        // ran depends on test order, so check the logger level that hides it instead of capturing stderr
         assertFalse(LoggerFactory.getLogger("io.github.twscrape4j.http.HttpClientFactory").isWarnEnabled());
     }
 
@@ -148,16 +147,60 @@ class TwScrapeCliTest {
 
     @Test
     void verboseRaisesOnlyLibraryLoggersToDebug() {
-        // what main() does for -v; slf4j-simple resolves levels when each logger is first created
-        System.setProperty(TwScrapeCli.VERBOSE_LOG_PROPERTY, "debug");
+        // slf4j-simple resolves levels when each logger is first created, so use fresh logger names
+        TwScrapeCli.applyVerbosity(new String[]{"search", "-v", "java"});
         assertTrue(LoggerFactory.getLogger("io.github.twscrape4j.test.Verbose").isDebugEnabled());
+        assertTrue(LoggerFactory.getLogger("io.github.twscrape4j.http.HttpClientFactory.VerboseTest").isDebugEnabled());
         assertFalse(LoggerFactory.getLogger("org.apache.hc.client5.http.headers.VerboseTest").isDebugEnabled());
         assertFalse(LoggerFactory.getLogger("org.apache.hc.client5.http.wire.VerboseTest").isDebugEnabled());
     }
 
     @Test
+    void withoutVerboseLevelsStayUnchanged() {
+        TwScrapeCli.applyVerbosity(new String[]{"search", "java"});
+        assertEquals(null, System.getProperty(TwScrapeCli.VERBOSE_LOG_PROPERTY));
+        assertEquals(null, System.getProperty(TwScrapeCli.HTTP_CLIENT_FACTORY_LOG_PROPERTY));
+    }
+
+    @Test
     void newCommandLineUsesGivenWriters() {
-        CommandLine cmd = TwScrapeCli.newCommandLine(() -> null, new PrintWriter(out), new PrintWriter(err));
-        assertEquals("twscrape", cmd.getCommandName());
+        assertEquals(0, run("--help"));
+        assertTrue(out.toString().contains("Usage: twscrape"), out.toString());
+        assertEquals(2, run("no-such-command"));
+        assertTrue(err.toString().contains("no-such-command"), err.toString());
+    }
+
+    // ---- subcommand version / error formatting ----
+
+    @ParameterizedTest
+    @ValueSource(strings = {"search", "user", "tweets", "list-members", "trends"})
+    void subcommandVersionPrintsProjectVersion(String subcommand) {
+        assertEquals(0, run(subcommand, "-V"));
+        assertEquals("twscrape " + System.getProperty("project.version"), out.toString().strip());
+    }
+
+    @Test
+    void errorMessageIsCollapsedToOneLine() {
+        String message = TwScrapeCli.oneLine(new RuntimeException("Twitter API error 500: <html>\n  <body>\r\nboom\n"));
+        assertEquals("Twitter API error 500: <html> <body> boom", message);
+    }
+
+    @Test
+    void longErrorMessageIsTruncated() {
+        String message = TwScrapeCli.oneLine(new RuntimeException("x".repeat(2000)));
+        assertEquals(TwScrapeCli.MAX_ERROR_LENGTH + 3, message.length());
+        assertTrue(message.endsWith("..."));
+    }
+
+    @Test
+    void errorEscapingPicocliIsReportedAsRuntimeError() {
+        ScraperFactory factory = () -> {
+            throw new NoClassDefFoundError("org/sqlite/JDBC");
+        };
+        CommandLine cmd = TwScrapeCli.newCommandLine(factory, new PrintWriter(out, true), new PrintWriter(err, true));
+
+        assertEquals(ExitCodes.RUNTIME, TwScrapeCli.execute(cmd, new String[]{"trends"}));
+        assertEquals("error: org/sqlite/JDBC", err.toString().strip());
+        assertEquals("", out.toString());
     }
 }

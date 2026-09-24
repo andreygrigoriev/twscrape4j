@@ -1,7 +1,6 @@
 package io.github.twscrape4j.cli.commands;
 
 import io.github.twscrape4j.api.TwScrape;
-import io.github.twscrape4j.cli.JsonOutput;
 import io.github.twscrape4j.cli.ModelJson;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
@@ -23,7 +22,7 @@ public final class ListCommands {
     @Command(name = "list-timeline", mixinStandardHelpOptions = true, description = "List tweets of a list.")
     public static class ListTimelineCommand extends ListIdCommand {
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
+        protected void run(TwScrape scraper) {
             emitStream(() -> scraper.listTimeline(listId), ModelJson::tweet, () -> scraper.listTimelineRaw(listId));
         }
     }
@@ -32,7 +31,7 @@ public final class ListCommands {
     @Command(name = "list-members", mixinStandardHelpOptions = true, description = "List members of a list.")
     public static class ListMembersCommand extends ListIdCommand {
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
+        protected void run(TwScrape scraper) {
             emitStream(() -> scraper.listMembers(listId), ModelJson::user, () -> scraper.listMembersRaw(listId));
         }
     }

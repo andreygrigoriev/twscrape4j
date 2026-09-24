@@ -5,3 +5,11 @@
 *.db
 docs
 .claude
+# local secrets: never bake them into builder layers or the build cache
+.env
+.env.*
+*.env
+*.pem
+*.key
+cookies*.txt
+*.cookies

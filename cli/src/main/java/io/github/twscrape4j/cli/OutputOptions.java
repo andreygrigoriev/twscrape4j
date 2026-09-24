@@ -14,6 +14,9 @@ public class OutputOptions {
     /** {@code --limit} value meaning "no limit". */
     public static final int UNLIMITED = -1;
 
+    /** Default {@code --limit}. */
+    public static final int DEFAULT_LIMIT = 20;
+
     @Spec(Spec.Target.MIXEE)
     CommandSpec mixee;
 
@@ -21,32 +24,17 @@ public class OutputOptions {
             description = "Output format: jsonl (one object per line) or json (pretty array/object). Default: ${DEFAULT-VALUE}.")
     Format format = Format.JSONL;
 
-    private int limit = 20;
+    private int limit = DEFAULT_LIMIT;
 
     @Option(names = "--raw", description = "Print the raw GraphQL JSON instead of the mapped model.")
     boolean raw;
 
-    public OutputOptions() {
-    }
-
-    /** Builds options directly, bypassing picocli; the limit is validated the same way. */
-    public static OutputOptions of(Format format, int limit, boolean raw) {
-        var opts = new OutputOptions();
-        opts.format = format;
-        opts.setLimit(limit);
-        opts.raw = raw;
-        return opts;
-    }
-
-    @Option(names = "--limit", defaultValue = "20", paramLabel = "N",
+    @Option(names = "--limit", defaultValue = "" + DEFAULT_LIMIT, paramLabel = "N",
             description = "Maximum number of items; -1 means no limit. Default: ${DEFAULT-VALUE}.")
     void setLimit(int limit) {
         if (limit != UNLIMITED && limit < 1) {
-            String message = "--limit must be -1 (no limit) or at least 1, but was " + limit;
-            if (mixee != null) {
-                throw new ParameterException(mixee.commandLine(), message);
-            }
-            throw new IllegalArgumentException(message);
+            throw new ParameterException(mixee.commandLine(),
+                    "--limit must be -1 (no limit) or at least 1, but was " + limit);
         }
         this.limit = limit;
     }

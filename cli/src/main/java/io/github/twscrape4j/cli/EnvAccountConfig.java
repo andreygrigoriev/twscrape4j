@@ -33,7 +33,8 @@ public sealed interface EnvAccountConfig {
     }
 
     /**
-     * Resolves the account from {@code env}; blank values count as unset.
+     * Resolves the account from {@code env}; blank values count as unset and are stripped, except
+     * {@code TWSCRAPE_PASSWORD}, which is used verbatim (only an empty value counts as unset).
      *
      * @throws CliConfigException when neither complete cookie nor complete login credentials are present
      */
@@ -41,7 +42,9 @@ public sealed interface EnvAccountConfig {
         String authToken = value(env, AUTH_TOKEN);
         String ct0 = value(env, CT0);
         String username = value(env, USERNAME);
-        String password = value(env, PASSWORD);
+        // the password is used verbatim: leading/trailing whitespace may be part of it
+        String rawPassword = env.get(PASSWORD);
+        String password = rawPassword == null || rawPassword.isEmpty() ? null : rawPassword;
         String email = value(env, EMAIL);
 
         if (authToken != null && ct0 != null) {

@@ -1,7 +1,6 @@
 package io.github.twscrape4j.cli.commands;
 
 import io.github.twscrape4j.api.TwScrape;
-import io.github.twscrape4j.cli.JsonOutput;
 import io.github.twscrape4j.cli.ModelJson;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
@@ -23,7 +22,7 @@ public final class TweetCommands {
     @Command(name = "tweet", mixinStandardHelpOptions = true, description = "Show a single tweet.")
     public static class TweetCommand extends TweetIdCommand {
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
+        protected void run(TwScrape scraper) {
             emitOptional(() -> scraper.tweetDetails(tweetId), ModelJson::tweet,
                     () -> scraper.tweetDetailsRaw(tweetId), "tweet " + tweetId + " not found");
         }
@@ -33,7 +32,7 @@ public final class TweetCommands {
     @Command(name = "replies", mixinStandardHelpOptions = true, description = "List replies to a tweet.")
     public static class RepliesCommand extends TweetIdCommand {
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
+        protected void run(TwScrape scraper) {
             emitStream(() -> scraper.tweetReplies(tweetId), ModelJson::tweet,
                     () -> scraper.tweetRepliesRaw(tweetId));
         }
@@ -43,7 +42,7 @@ public final class TweetCommands {
     @Command(name = "retweeters", mixinStandardHelpOptions = true, description = "List users who retweeted a tweet.")
     public static class RetweetersCommand extends TweetIdCommand {
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
+        protected void run(TwScrape scraper) {
             emitStream(() -> scraper.tweetRetweeters(tweetId), ModelJson::user,
                     () -> scraper.tweetRetweetersRaw(tweetId));
         }

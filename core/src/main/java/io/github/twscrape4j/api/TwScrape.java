@@ -16,7 +16,11 @@ import io.github.twscrape4j.models.Tweet;
 import io.github.twscrape4j.models.User;
 import io.github.twscrape4j.ratelimit.RateLimitTracker;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.cookie.BasicCookieStore;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Spliterator;
@@ -121,10 +125,14 @@ public final class TwScrape implements AutoCloseable {
      * Triggers the Twitter onboarding flow; invokes {@code challengeHandler} on email verification.
      */
     public void addAccount(String username, String password, String email) {
-        var loginClient = new LoginClient(httpFactory.buildClient(
-                new Account(username, password, email, "", "", "", null, false, false, null, null, 0L)),
-                challengeHandler);
-        Account account = loginClient.login(username, password, email);
+        var cookies = new BasicCookieStore();
+        Account account;
+        try (CloseableHttpClient http = httpFactory.buildClient(
+                new Account(username, password, email, "", "", "", null, false, false, null, null, 0L), cookies)) {
+            account = new LoginClient(http, cookies, challengeHandler).login(username, password, email);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
         repo.save(account);
         pool.reload();
         log.info("Account {} added via login", username);

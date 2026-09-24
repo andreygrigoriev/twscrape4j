@@ -1,7 +1,6 @@
 package io.github.twscrape4j.cli.commands;
 
 import io.github.twscrape4j.api.TwScrape;
-import io.github.twscrape4j.cli.JsonOutput;
 import io.github.twscrape4j.cli.ModelJson;
 import io.github.twscrape4j.cli.UserRef;
 import picocli.CommandLine.Command;
@@ -19,14 +18,14 @@ public final class UserCommands {
     /** {@code twscrape user <login>}: a user by login; exits 4 when the user is not found. */
     @Command(name = "user", mixinStandardHelpOptions = true, description = "Show a user by login.")
     public static class UserCommand extends DataCommand {
-        @Parameters(index = "0", paramLabel = "LOGIN", description = "User login (a leading @ is optional).")
+        @Parameters(index = "0", paramLabel = "LOGIN", converter = LoginConverter.class,
+                description = "User login (a leading @ is optional).")
         String login;
 
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
-            String name = login.strip().startsWith("@") ? login.strip().substring(1) : login.strip();
-            emitOptional(() -> scraper.userByLogin(name), ModelJson::user,
-                    () -> scraper.userByLoginRaw(name), "user @" + name + " not found");
+        protected void run(TwScrape scraper) {
+            emitOptional(() -> UserRef.available(scraper.userByLogin(login)), ModelJson::user,
+                    () -> scraper.userByLoginRaw(login), "user @" + login + " not found");
         }
     }
 
@@ -38,8 +37,8 @@ public final class UserCommands {
         long userId;
 
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
-            emitOptional(() -> scraper.userById(userId), ModelJson::user,
+        protected void run(TwScrape scraper) {
+            emitOptional(() -> UserRef.available(scraper.userById(userId)), ModelJson::user,
                     () -> scraper.userByIdRaw(userId), "user " + userId + " not found");
         }
     }
@@ -55,7 +54,7 @@ public final class UserCommands {
     @Command(name = "tweets", mixinStandardHelpOptions = true, description = "List a user's tweets.")
     public static class TweetsCommand extends UserRefCommand {
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
+        protected void run(TwScrape scraper) {
             long id = user.resolve(scraper);
             emitStream(() -> scraper.userTweets(id), ModelJson::tweet, () -> scraper.userTweetsRaw(id));
         }
@@ -65,7 +64,7 @@ public final class UserCommands {
     @Command(name = "media", mixinStandardHelpOptions = true, description = "List a user's media tweets.")
     public static class MediaCommand extends UserRefCommand {
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
+        protected void run(TwScrape scraper) {
             long id = user.resolve(scraper);
             emitStream(() -> scraper.userMedia(id), ModelJson::tweet, () -> scraper.userMediaRaw(id));
         }
@@ -75,7 +74,7 @@ public final class UserCommands {
     @Command(name = "followers", mixinStandardHelpOptions = true, description = "List a user's followers.")
     public static class FollowersCommand extends UserRefCommand {
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
+        protected void run(TwScrape scraper) {
             long id = user.resolve(scraper);
             emitStream(() -> scraper.userFollowers(id), ModelJson::user, () -> scraper.userFollowersRaw(id));
         }
@@ -85,7 +84,7 @@ public final class UserCommands {
     @Command(name = "following", mixinStandardHelpOptions = true, description = "List users a user follows.")
     public static class FollowingCommand extends UserRefCommand {
         @Override
-        protected void run(TwScrape scraper, JsonOutput out) {
+        protected void run(TwScrape scraper) {
             long id = user.resolve(scraper);
             emitStream(() -> scraper.userFollowing(id), ModelJson::user, () -> scraper.userFollowingRaw(id));
         }

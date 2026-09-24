@@ -15,14 +15,20 @@ import picocli.CommandLine.ParseResult;
 import picocli.CommandLine.ScopeType;
 import picocli.CommandLine.Spec;
 
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
-/** Root {@code twscrape} command. Results go to stdout; logs and errors go to stderr. */
-// subcommands are declared here so they exist before configure(...) propagates settings to them
+/**
+ * Root {@code twscrape} command. Results go to stdout; logs and errors go to stderr.
+ *
+ * <p>Subcommands are declared in the annotation so they exist before {@code configure(...)} propagates
+ * settings to them.
+ */
 @Command(name = "twscrape", mixinStandardHelpOptions = true, versionProvider = VersionProvider.class,
         description = "Stateless Twitter/X scraper. Writes results to stdout as JSON Lines or JSON.",
         subcommands = {
@@ -44,6 +50,12 @@ public class TwScrapeCli implements Callable<Integer> {
 
     /** slf4j-simple level key for the library's own loggers; httpclient stays quiet to avoid leaking cookies. */
     static final String VERBOSE_LOG_PROPERTY = "org.slf4j.simpleLogger.log.io.github.twscrape4j";
+    /** Overrides the {@code error} level {@code simplelogger.properties} sets for {@code HttpClientFactory}. */
+    static final String HTTP_CLIENT_FACTORY_LOG_PROPERTY = VERBOSE_LOG_PROPERTY + ".http.HttpClientFactory";
+
+    /** Longest error message printed; longer ones (e.g. an HTML response body) are cut. */
+    static final int MAX_ERROR_LENGTH = 500;
+    private static final Pattern LINE_BREAKS = Pattern.compile("\\s*\\R\\s*");
 
     /** Clustered short flags that contain {@code -v}, e.g. {@code -vh}; limited to the root's known short options. */
     private static final Pattern CLUSTERED_VERBOSE = Pattern.compile("-[hvV]*v[hvV]*");
@@ -73,13 +85,38 @@ public class TwScrapeCli implements Callable<Integer> {
 
     public static void main(String[] args) {
         // must run before any logger initializes: slf4j-simple reads levels when loggers are created
-        if (isVerbose(args)) {
-            System.setProperty(VERBOSE_LOG_PROPERTY, "debug");
-        }
-        var out = new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8), true);
+        applyVerbosity(args);
+        // FileOutputStream instead of System.out: PrintStream hides write errors (closed pipe, full disk)
+        // from the PrintWriter, which JsonOutput checks after every flush
+        var out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(FileDescriptor.out),
+                StandardCharsets.UTF_8), true);
         var err = new PrintWriter(new OutputStreamWriter(System.err, StandardCharsets.UTF_8), true);
         ScraperFactory factory = new DefaultScraperFactory(System.getenv(), System.console());
-        System.exit(newCommandLine(factory, out, err).execute(args));
+        System.exit(execute(newCommandLine(factory, out, err), args));
+    }
+
+    /**
+     * Runs {@code cmd}; picocli hands only {@link Exception}s to the execution exception handler, so an
+     * {@link Error} (e.g. {@code NoClassDefFoundError}, {@code OutOfMemoryError}) is reported here the same way.
+     */
+    static int execute(CommandLine cmd, String[] args) {
+        try {
+            return cmd.execute(args);
+        } catch (Throwable t) {
+            report(cmd, t);
+            return ExitCodes.RUNTIME;
+        }
+    }
+
+    /**
+     * With {@code -v}, raises the library loggers to debug, including {@code HttpClientFactory}, which the
+     * logging config otherwise keeps at error to hide the expected Conscrypt fallback warning.
+     */
+    static void applyVerbosity(String[] args) {
+        if (isVerbose(args)) {
+            System.setProperty(VERBOSE_LOG_PROPERTY, "debug");
+            System.setProperty(HTTP_CLIENT_FACTORY_LOG_PROPERTY, "debug");
+        }
     }
 
     /** Builds the configured command line; tests pass their own factory and writers. */
@@ -96,6 +133,8 @@ public class TwScrapeCli implements Callable<Integer> {
         cmd.setOut(out);
         cmd.setErr(err);
         cmd.setExecutionExceptionHandler(TwScrapeCli::handleExecutionException);
+        // mixinStandardHelpOptions gives every subcommand -V/--version; make it print the real version
+        cmd.getSubcommands().values().forEach(sub -> sub.getCommandSpec().versionProvider(new VersionProvider()));
         return cmd;
     }
 
@@ -106,15 +145,25 @@ public class TwScrapeCli implements Callable<Integer> {
      * @see IExecutionExceptionHandler
      */
     static int handleExecutionException(Exception ex, CommandLine cmd, ParseResult parseResult) {
+        report(cmd, ex);
+        return exitCode(ex);
+    }
+
+    /** Writes {@code error: <message>} to {@code cmd}'s stderr, plus the stack trace when the root has {@code -v}. */
+    private static void report(CommandLine cmd, Throwable t) {
         PrintWriter err = cmd.getErr();
-        String message = ex.getMessage() != null && !ex.getMessage().isBlank()
-                ? ex.getMessage() : ex.getClass().getName();
-        err.println("error: " + message);
+        err.println("error: " + oneLine(t));
         if (cmd.getCommandSpec().root().userObject() instanceof TwScrapeCli root && root.verbose) {
-            ex.printStackTrace(err);
+            t.printStackTrace(err);
         }
         err.flush();
-        return exitCode(ex);
+    }
+
+    /** The message of {@code t} (or its class name) on a single line, at most {@link #MAX_ERROR_LENGTH} chars. */
+    static String oneLine(Throwable t) {
+        String message = t.getMessage() != null && !t.getMessage().isBlank() ? t.getMessage() : t.getClass().getName();
+        message = LINE_BREAKS.matcher(message.strip()).replaceAll(" ");
+        return message.length() <= MAX_ERROR_LENGTH ? message : message.substring(0, MAX_ERROR_LENGTH) + "...";
     }
 
     static int exitCode(Exception ex) {
@@ -126,13 +175,17 @@ public class TwScrapeCli implements Callable<Integer> {
         };
     }
 
-    /** Detects {@code -v}/{@code --verbose} (also clustered, e.g. {@code -vh}) before {@code --}. */
+    /**
+     * Detects {@code -v}/{@code --verbose} (also clustered, e.g. {@code -vh}, or {@code --verbose=true})
+     * before {@code --}.
+     */
     static boolean isVerbose(String[] args) {
         for (String arg : args) {
             if ("--".equals(arg)) {
                 return false;
             }
-            if ("--verbose".equals(arg) || CLUSTERED_VERBOSE.matcher(arg).matches()) {
+            if ("--verbose".equals(arg) || CLUSTERED_VERBOSE.matcher(arg).matches()
+                    || arg.startsWith("--verbose=") && !"--verbose=false".equalsIgnoreCase(arg)) {
                 return true;
             }
         }

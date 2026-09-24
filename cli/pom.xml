@@ -154,7 +154,8 @@
     <profiles>
         <!--
             GraalVM native executable: ./mvnw -Pnative -pl cli -am package
-            Build flags live in META-INF/native-image/io.github.twscrape4j/twscrape4j-cli/native-image.properties.
+            Build flags live in META-INF/native-image/io.github.twscrape4j/twscrape4j-cli/native-image.properties;
+            the Linux-only static-nolibc flag comes from the native-linux profile below.
         -->
         <profile>
             <id>native</id>
@@ -180,6 +181,33 @@
                         </configuration>
                     </plugin>
                 </plugins>
+            </build>
+        </profile>
+        <!--
+            Mostly-static executable (only glibc linked dynamically) for the distroless image. native-image supports
+            this on Linux only, so it is activated by the OS and merges into the native profile's plugin config.
+        -->
+        <profile>
+            <id>native-linux</id>
+            <activation>
+                <os>
+                    <family>linux</family>
+                </os>
+            </activation>
+            <build>
+                <pluginManagement>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.graalvm.buildtools</groupId>
+                            <artifactId>native-maven-plugin</artifactId>
+                            <configuration>
+                                <buildArgs>
+                                    <buildArg>--static-nolibc</buildArg>
+                                </buildArgs>
+                            </configuration>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
             </build>
         </profile>
     </profiles>

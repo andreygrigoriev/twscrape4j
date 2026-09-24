@@ -1,6 +1,8 @@
 package io.github.twscrape4j.cli.commands;
 
+import tools.jackson.databind.JsonNode;
 import io.github.twscrape4j.api.TwScrape;
+import io.github.twscrape4j.cli.ExitCodes;
 import io.github.twscrape4j.cli.JsonOutput;
 import io.github.twscrape4j.cli.NotFoundException;
 import io.github.twscrape4j.cli.OutputOptions;
@@ -9,7 +11,6 @@ import io.github.twscrape4j.cli.TwScrapeCli;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Spec;
-import tools.jackson.databind.JsonNode;
 
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -33,15 +34,15 @@ public abstract class DataCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        json = new JsonOutput(spec.commandLine().getOut(), output);
+        json = new JsonOutput(spec.commandLine().getOut(), output.format(), output.limit());
         try (TwScrape scraper = scraperFactory().open()) {
-            run(scraper, json);
+            run(scraper);
         }
-        return 0;
+        return ExitCodes.OK;
     }
 
-    /** Performs the operation and writes its results to {@code out}. */
-    protected abstract void run(TwScrape scraper, JsonOutput out);
+    /** Performs the operation and writes its results with {@link #emitStream} or {@link #emitOptional}. */
+    protected abstract void run(TwScrape scraper);
 
     /**
      * Writes a stream (or list) result: the typed items mapped by {@code mapper}, or the raw GraphQL nodes with

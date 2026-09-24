@@ -31,6 +31,23 @@ public class TwitterException extends RuntimeException {
         }
     }
 
+    /** The login flow did not produce a session: X denied the login or set no session cookies. */
+    public static class LoginFailedException extends TwitterException {
+        public LoginFailedException(String username, String reason) {
+            super("Login failed for " + username + ": " + reason);
+        }
+    }
+
+    /**
+     * The login flow asked for a step this client does not support (e.g. a captcha) or broke the expected
+     * protocol (no flow token, never finished); retrying with other credentials will not help, cookies will.
+     */
+    public static class LoginUnsupportedException extends LoginFailedException {
+        public LoginUnsupportedException(String username, String reason) {
+            super(username, reason);
+        }
+    }
+
     public static class TwitterApiException extends TwitterException {
         private final int code;
 

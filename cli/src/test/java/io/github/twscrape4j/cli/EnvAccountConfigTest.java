@@ -88,4 +88,18 @@ class EnvAccountConfigTest {
         assertFalse(cookies.contains("secret"), cookies);
         assertFalse(login.contains("secret"), login);
     }
+
+    @Test
+    void passwordIsUsedVerbatim() {
+        var config = EnvAccountConfig.load(Map.of(
+                "TWSCRAPE_USERNAME", " alice ", "TWSCRAPE_PASSWORD", " pw ", "TWSCRAPE_EMAIL", "a@example.com"));
+        assertEquals(new EnvAccountConfig.Login("alice", " pw ", "a@example.com"), config);
+    }
+
+    @Test
+    void whitespaceOnlyPasswordIsAPassword() {
+        var config = EnvAccountConfig.load(Map.of(
+                "TWSCRAPE_USERNAME", "alice", "TWSCRAPE_PASSWORD", "   ", "TWSCRAPE_EMAIL", "a@example.com"));
+        assertEquals(new EnvAccountConfig.Login("alice", "   ", "a@example.com"), config);
+    }
 }

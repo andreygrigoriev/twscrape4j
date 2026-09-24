@@ -8,8 +8,12 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.UncheckedIOException;
+import java.io.Writer;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -25,7 +29,7 @@ class JsonOutputTest {
     private final StringWriter buffer = new StringWriter();
 
     private JsonOutput output(OutputOptions.Format format, int limit) {
-        return new JsonOutput(new PrintWriter(buffer), OutputOptions.of(format, limit, false));
+        return new JsonOutput(new PrintWriter(buffer), format, limit);
     }
 
     private static Stream<JsonNode> items(int count) {
@@ -131,10 +135,88 @@ class JsonOutputTest {
         assertTrue(buffer.toString().contains("\n"));
     }
 
+    // ---- write failures (closed pipe, full disk) ----
+
+    /** A writer that accepts {@code capacity} chars and then fails, like stdout after the reader of a pipe exits. */
+    private static final class FailingWriter extends Writer {
+        private int capacity;
+
+        FailingWriter(int capacity) {
+            this.capacity = capacity;
+        }
+
+        @Override
+        public void write(char[] cbuf, int off, int len) throws IOException {
+            if (len > capacity) {
+                throw new IOException("Broken pipe");
+            }
+            capacity -= len;
+        }
+
+        @Override
+        public void flush() {
+        }
+
+        @Override
+        public void close() {
+        }
+    }
+
     @Test
-    void invalidLimitRejectedWhenBuiltDirectly() {
-        assertThrows(IllegalArgumentException.class, () -> OutputOptions.of(OutputOptions.Format.JSONL, 0, false));
-        assertThrows(IllegalArgumentException.class, () -> OutputOptions.of(OutputOptions.Format.JSONL, -2, false));
+    void jsonlWriteFailureStopsConsumingTheStream() {
+        var produced = new AtomicInteger();
+        Stream<JsonNode> infinite = Stream.generate(
+                () -> MAPPER.createObjectNode().put("n", produced.incrementAndGet()));
+        var out = new JsonOutput(new PrintWriter(new FailingWriter(20)), OutputOptions.Format.JSONL,
+                OutputOptions.UNLIMITED);
+
+        var ex = assertThrows(UncheckedIOException.class, () -> out.writeStream(infinite));
+
+        assertTrue(ex.getMessage().contains("stdout"), ex.getMessage());
+        // {"n":1} plus a line break fits, {"n":2} does not
+        assertTrue(produced.get() <= 3, "stream must stop after the failed write, produced " + produced.get());
+    }
+
+    @Test
+    void jsonWriteFailureIsReported() {
+        var out = new JsonOutput(new PrintWriter(new FailingWriter(0)), OutputOptions.Format.JSON, 20);
+
+        assertThrows(UncheckedIOException.class, () -> out.writeStream(items(3)));
+    }
+
+    @Test
+    void writeSingleFailureIsReported() {
+        var out = new JsonOutput(new PrintWriter(new FailingWriter(0)), OutputOptions.Format.JSONL, 20);
+
+        assertThrows(UncheckedIOException.class, () -> out.writeSingle(MAPPER.createObjectNode().put("a", 1)));
+    }
+
+    // ---- the source stream is closed (releases pagination resources) ----
+
+    @Test
+    void streamIsClosedAfterFullRead() {
+        var closed = new AtomicBoolean();
+        output(OutputOptions.Format.JSONL, OutputOptions.UNLIMITED).writeStream(items(3).onClose(() -> closed.set(true)));
+        assertTrue(closed.get());
+    }
+
+    @Test
+    void streamIsClosedWhenCutAtLimit() {
+        var closed = new AtomicBoolean();
+        output(OutputOptions.Format.JSON, 2).writeStream(items(10).onClose(() -> closed.set(true)));
+        assertTrue(closed.get());
+    }
+
+    @Test
+    void streamIsClosedOnMidStreamFailure() {
+        var closed = new AtomicBoolean();
+        Stream<JsonNode> failing = Stream.concat(items(1),
+                Stream.<JsonNode>generate(() -> { throw new IllegalStateException("boom"); }))
+                .onClose(() -> closed.set(true));
+
+        assertThrows(IllegalStateException.class,
+                () -> output(OutputOptions.Format.JSONL, OutputOptions.UNLIMITED).writeStream(failing));
+        assertTrue(closed.get());
     }
 
     @Command(name = "stub")

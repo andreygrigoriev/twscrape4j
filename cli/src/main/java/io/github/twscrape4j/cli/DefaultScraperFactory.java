@@ -41,7 +41,11 @@ public class DefaultScraperFactory implements ScraperFactory {
             }
             return scraper;
         } catch (RuntimeException e) {
-            scraper.close();
+            try {
+                scraper.close();
+            } catch (RuntimeException closeError) {
+                e.addSuppressed(closeError);
+            }
             throw e;
         }
     }
@@ -55,28 +59,36 @@ public class DefaultScraperFactory implements ScraperFactory {
             if (challenge != null) {
                 throw challenge;
             }
+            if (e instanceof TwitterException.LoginUnsupportedException) {
+                throw new CliConfigException("login flow not supported for " + l.username()
+                        + " (use TWSCRAPE_AUTH_TOKEN/TWSCRAPE_CT0 instead): " + e.getMessage(), e);
+            }
             if (isAuthRejection(e)) {
-                throw new CliConfigException("login rejected for " + l.username() + ": " + e.getMessage(), e);
+                throw new CliConfigException("login rejected for " + l.username() + " (check TWSCRAPE_USERNAME, "
+                        + "TWSCRAPE_PASSWORD and TWSCRAPE_EMAIL, or use TWSCRAPE_AUTH_TOKEN/TWSCRAPE_CT0): "
+                        + e.getMessage(), e);
             }
             throw e;
         }
     }
 
-    /** 4xx answers from the login flow (except 429) and missing session cookies mean the credentials were refused. */
-    private static boolean isAuthRejection(RuntimeException e) {
-        if (e instanceof TwitterException.TwitterApiException api) {
-            return api.code() >= 400 && api.code() < 500 && api.code() != 429;
-        }
-        return e instanceof IllegalStateException || e instanceof TwitterException.AccountSuspendedException;
+    /**
+     * 4xx answers from the login flow (except 429), a failed login (denied, no session cookies, or a flow this client
+     * cannot complete) and a suspended account are config errors; anything else (network, 5xx, 429, bugs) stays a
+     * runtime error.
+     */
+    static boolean isAuthRejection(RuntimeException e) {
+        return switch (e) {
+            case TwitterException.TwitterApiException api -> api.code() >= 400 && api.code() < 500 && api.code() != 429;
+            case TwitterException.LoginFailedException _, TwitterException.AccountSuspendedException _ -> true;
+            default -> false;
+        };
     }
 
     private static <T extends Throwable> T findCause(Throwable t, Class<T> type) {
         for (Throwable c = t; c != null; c = c.getCause()) {
             if (type.isInstance(c)) {
                 return type.cast(c);
-            }
-            if (c.getCause() == c) {
-                break;
             }
         }
         return null;

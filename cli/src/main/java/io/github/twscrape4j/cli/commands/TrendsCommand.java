@@ -2,7 +2,6 @@ package io.github.twscrape4j.cli.commands;
 
 import io.github.twscrape4j.api.TrendCategory;
 import io.github.twscrape4j.api.TwScrape;
-import io.github.twscrape4j.cli.JsonOutput;
 import io.github.twscrape4j.cli.ModelJson;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -16,7 +15,7 @@ public class TrendsCommand extends DataCommand {
     TrendCategory category = TrendCategory.TRENDING;
 
     @Override
-    protected void run(TwScrape scraper, JsonOutput out) {
+    protected void run(TwScrape scraper) {
         emitStream(() -> scraper.trends(category).stream(), ModelJson::trend,
                 () -> scraper.trendsRaw(category).stream());
     }

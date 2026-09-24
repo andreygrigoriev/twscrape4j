@@ -39,7 +39,18 @@ class CliChallengeHandlerTest {
         when(console.isTerminal()).thenReturn(true);
         when(console.readLine(anyString(), any(Object[].class))).thenReturn(null);
         var handler = new CliChallengeHandler(Map.of(), console);
-        assertThrows(CliConfigException.class, () -> handler.resolve("LoginAcid", "Enter code"));
+        var ex = assertThrows(CliConfigException.class, () -> handler.resolve("LoginAcid", "Enter code"));
+        assertEquals("no verification code entered", ex.getMessage());
+    }
+
+    @Test
+    void whitespaceOnlyTerminalAnswerIsConfigError() {
+        Console console = mock(Console.class);
+        when(console.isTerminal()).thenReturn(true);
+        when(console.readLine(anyString(), any(Object[].class))).thenReturn("   ");
+        var handler = new CliChallengeHandler(Map.of(), console);
+        var ex = assertThrows(CliConfigException.class, () -> handler.resolve("LoginAcid", "Enter code"));
+        assertEquals("no verification code entered", ex.getMessage());
     }
 
     @Test
