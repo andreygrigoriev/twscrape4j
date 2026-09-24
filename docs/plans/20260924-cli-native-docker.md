@@ -514,16 +514,16 @@ writes a one-line message to stderr.
 
 ### Task 10: Verify acceptance criteria
 
-- [ ] verify all requirements from Overview are implemented (subcommands, JSON/JSONL,
+- [x] verify all requirements from Overview are implemented (subcommands, JSON/JSONL,
       stateless env accounts, native binary, Docker image)
-- [ ] verify edge cases: empty results, `--limit -1`, huge IDs as strings, partial env, a
+- [x] verify edge cases: empty results, `--limit -1`, huge IDs as strings, partial env, a
       non-interactive login without a challenge code, and nothing but data on stdout
-- [ ] run full test suite: `./mvnw verify`
-- [ ] run `docker build` end-to-end, check image size (target < 100 MB), and confirm the binary
+- [x] run full test suite: `./mvnw verify` (286 tests, 0 failures, 4 skipped)
+- [x] (verified with `podman build`, linux/arm64: 81.1 MB, uid 65532) run `docker build` end-to-end, check image size (target < 100 MB), and confirm the binary
       runs as non-root
-- [ ] confirm the core library jar still has no picocli/slf4j-simple dependency
+- [x] (only slf4j-api, no picocli/slf4j-simple) confirm the core library jar still has no picocli/slf4j-simple dependency
       (`./mvnw -pl core dependency:tree`)
-- [ ] shaded jar runs: `java -jar cli/target/twscrape4j-cli-*-all.jar --version`, and a
+- [x] (offline run via macOS sandbox-exec, exit 1 network error) shaded jar runs: `java -jar cli/target/twscrape4j-cli-*-all.jar --version`, and a
       `--network`-less dummy-cookie run exits 1 (not a NoClassDefFoundError)
 
 ### Task 11: [Final] Update documentation
