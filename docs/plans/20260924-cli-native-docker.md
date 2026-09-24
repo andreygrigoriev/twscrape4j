@@ -389,17 +389,22 @@ writes a one-line message to stderr.
 - Modify: `cli/src/main/java/io/github/twscrape4j/cli/TwScrapeCli.java` (register the exception handler)
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/ExitCodeMappingTest.java`
 
-- [ ] `DataCommand implements Callable<Integer>`: holds the `OutputOptions` mixin and the
+- [x] `DataCommand implements Callable<Integer>`: holds the `OutputOptions` mixin and the
       injected `ScraperFactory`. `call()` opens `TwScrape` in try-with-resources and delegates
       to `abstract void run(TwScrape, JsonOutput)`. It provides helpers
       `emitStream(Stream<T>, Function<T,JsonNode> mapper, Supplier<Stream<JsonNode>> raw)` and
       `emitOptional(...)`, the latter throwing `NotFoundException` on empty.
-- [ ] `IExecutionExceptionHandler` in `TwScrapeCli`: `CliConfigException` → 3,
+      — both helpers take `Supplier`s for the typed and raw calls, so only the chosen API method is invoked;
+      the factory comes from the root `TwScrapeCli` via `spec.root().userObject()`
+- [x] `IExecutionExceptionHandler` in `TwScrapeCli`: `CliConfigException` → 3,
       `NotFoundException` → 4, `TwitterException`/other → 1. It writes a one-line `error: <message>`
       to stderr and adds a stack trace only with `-v`.
-- [ ] write tests using a stub command with a mocked `TwScrape`: each exception type maps to its
+      — `-v/--verbose` is now `scope = INHERIT`, so it is also accepted after a subcommand (`search -v ...`);
+      ➕ `TwScrapeCli.configure(cmd, out, err)` applies writers/enum parsing/handler, and must be called after
+      subcommands are registered (picocli only propagates these settings to existing subcommands)
+- [x] write tests using a stub command with a mocked `TwScrape`: each exception type maps to its
       code, stderr gets the message, stdout stays empty on error
-- [ ] run tests - must pass before next task
+- [x] run tests - must pass before next task
 
 ### Task 6: Tweet, search and trends commands
 

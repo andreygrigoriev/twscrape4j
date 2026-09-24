@@ -2,9 +2,12 @@ package io.github.twscrape4j.cli;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.IExecutionExceptionHandler;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ParseResult;
+import picocli.CommandLine.ScopeType;
 import picocli.CommandLine.Spec;
 
 import java.io.OutputStreamWriter;
@@ -29,14 +32,16 @@ public class TwScrapeCli implements Callable<Integer> {
     @Spec
     CommandSpec spec;
 
-    @Option(names = {"-v", "--verbose"}, description = "Debug logging for twscrape4j to stderr.")
+    @Option(names = {"-v", "--verbose"}, scope = ScopeType.INHERIT,
+            description = "Debug logging for twscrape4j to stderr; adds stack traces to errors.")
     boolean verbose;
 
     TwScrapeCli(ScraperFactory scraperFactory) {
         this.scraperFactory = scraperFactory;
     }
 
-    ScraperFactory scraperFactory() {
+    /** The factory data commands use to open their {@code TwScrape}. */
+    public ScraperFactory scraperFactory() {
         return scraperFactory;
     }
 
@@ -58,11 +63,46 @@ public class TwScrapeCli implements Callable<Integer> {
 
     /** Builds the configured command line; tests pass their own factory and writers. */
     static CommandLine newCommandLine(ScraperFactory factory, PrintWriter out, PrintWriter err) {
-        var cmd = new CommandLine(new TwScrapeCli(factory));
+        return configure(new CommandLine(new TwScrapeCli(factory)), out, err);
+    }
+
+    /**
+     * Applies writers, enum parsing and exit-code mapping to {@code cmd} and its subcommands. picocli only
+     * propagates these to subcommands registered at the time of the call, so run it after adding subcommands.
+     */
+    static CommandLine configure(CommandLine cmd, PrintWriter out, PrintWriter err) {
         cmd.setCaseInsensitiveEnumValuesAllowed(true);
         cmd.setOut(out);
         cmd.setErr(err);
+        cmd.setExecutionExceptionHandler(TwScrapeCli::handleExecutionException);
         return cmd;
+    }
+
+    /**
+     * Maps exceptions thrown by commands to exit codes and writes a one-line {@code error: <message>} to stderr,
+     * plus the stack trace with {@code -v}. Nothing is written to stdout.
+     *
+     * @see IExecutionExceptionHandler
+     */
+    static int handleExecutionException(Exception ex, CommandLine cmd, ParseResult parseResult) {
+        PrintWriter err = cmd.getErr();
+        String message = ex.getMessage() != null && !ex.getMessage().isBlank()
+                ? ex.getMessage() : ex.getClass().getName();
+        err.println("error: " + message);
+        if (cmd.getCommandSpec().root().userObject() instanceof TwScrapeCli root && root.verbose) {
+            ex.printStackTrace(err);
+        }
+        err.flush();
+        return exitCode(ex);
+    }
+
+    static int exitCode(Exception ex) {
+        return switch (ex) {
+            case CliConfigException _ -> ExitCodes.CONFIG;
+            case NotFoundException _ -> ExitCodes.NOT_FOUND;
+            // TwitterException, I/O and anything unexpected
+            default -> ExitCodes.RUNTIME;
+        };
     }
 
     /** Detects {@code -v}/{@code --verbose} (also clustered, e.g. {@code -vh}) before {@code --}. */
