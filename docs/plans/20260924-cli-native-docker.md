@@ -464,20 +464,20 @@ writes a one-line message to stderr.
 - Create: `cli/src/main/resources/META-INF/native-image/io.github.twscrape4j/twscrape4j-cli/reachability-metadata.json` (GraalVM 25 unified format, resources section)
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/NativeConfigTest.java`
 
-- [ ] `native` profile: `org.graalvm.buildtools:native-maven-plugin`, goal `compile-no-fork` bound to `package`,
+- [x] `native` profile: `org.graalvm.buildtools:native-maven-plugin`, goal `compile-no-fork` bound to `package`,
       `imageName=twscrape`, `mainClass=io.github.twscrape4j.cli.TwScrapeCli`, `skipNativeTests=true`
-- [ ] `native-image.properties`: `--no-fallback --static-nolibc -march=compatibility
+- [x] `native-image.properties`: `--no-fallback --static-nolibc -march=compatibility
       -H:+ReportExceptionStackTraces` (no `--link-at-build-time`/`--initialize-at-build-time`;
       see Key decision 4)
-- [ ] `reachability-metadata.json` resources (exact globs):
+- [x] `reachability-metadata.json` resources (exact globs):
       `io/github/twscrape4j/cli/version.properties`, `simplelogger.properties`,
       `org/publicsuffix/list/effective_tld_names.dat` (httpclient5 public suffix list), and
       `org/apache/hc/client5/version.properties`. jsoup 1.23 ships no data resources, so nothing
       is needed for it.
-- [ ] write `NativeConfigTest` (JVM): `getResource(...)` is non-null for each of the four listed
+- [x] write `NativeConfigTest` (JVM): `getResource(...)` is non-null for each of the four listed
       resources, and the picocli-codegen `reflect-config.json` exists under
       `META-INF/native-image/picocli-generated`
-- [ ] run tests - must pass before next task (the actual native compile is verified in Task 9)
+- [x] run tests - must pass before next task (the actual native compile is verified in Task 9)
 
 ### Task 9: Dockerfile with native build and smoke checks
 

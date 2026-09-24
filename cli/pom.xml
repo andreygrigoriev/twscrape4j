@@ -150,4 +150,37 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            GraalVM native executable: ./mvnw -Pnative -pl cli -am package
+            Build flags live in META-INF/native-image/io.github.twscrape4j/twscrape4j-cli/native-image.properties.
+        -->
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <extensions>true</extensions>
+                        <executions>
+                            <execution>
+                                <id>build-native</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>compile-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <imageName>twscrape</imageName>
+                            <mainClass>${main.class}</mainClass>
+                            <skipNativeTests>true</skipNativeTests>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
