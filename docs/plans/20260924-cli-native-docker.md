@@ -324,26 +324,31 @@ writes a one-line message to stderr.
 - Create: `cli/src/main/java/io/github/twscrape4j/cli/CliConfigException.java`
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/EnvAccountConfigTest.java`
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/CliChallengeHandlerTest.java`
+- ➕ Create: `cli/src/test/java/io/github/twscrape4j/cli/DefaultScraperFactoryTest.java`
+- ➕ Modify: `cli/src/main/java/io/github/twscrape4j/cli/TwScrapeCli.java` (`main` uses `DefaultScraperFactory`)
 
-- [ ] `EnvAccountConfig`: a sealed interface with `Cookies(username, authToken, ct0)` and
+- [x] `EnvAccountConfig`: a sealed interface with `Cookies(username, authToken, ct0)` and
       `Login(username, password, email)` records, and `static EnvAccountConfig load(Map<String,String> env)`
       implementing the resolution order from Technical Details. Blank values count as unset.
       Throws `CliConfigException` listing the required variables.
-- [ ] `CliChallengeHandler(Map<String,String> env, Console console)`: returns
+- [x] `CliChallengeHandler(Map<String,String> env, Console console)`: returns
       `TWSCRAPE_CHALLENGE_CODE` if set; otherwise prompts via `console.readLine` if
       `console != null && console.isTerminal()` (JDK 22+ can return a non-terminal console);
       otherwise throws `CliConfigException("login requires a verification code; set TWSCRAPE_CHALLENGE_CODE")`
-- [ ] `DefaultScraperFactory implements ScraperFactory`: creates
+- [x] `DefaultScraperFactory implements ScraperFactory`: creates
       `TwScrape.create(challengeHandler)` and adds the account through `addAccountByCookies` or
       `addAccount`. Only auth or challenge rejections are wrapped in `CliConfigException` (exit 3);
       network/I/O errors propagate (exit 1).
-- [ ] write tests for `EnvAccountConfig`: cookie mode, login mode, cookie precedence when both
+      — rejection = login-flow `TwitterApiException` with 4xx (not 429), `IllegalStateException`
+      (no session cookies after login) or `AccountSuspendedException`; a `CliConfigException` from the
+      challenge handler is unwrapped from the login flow's `TwitterException` wrapper
+- [x] write tests for `EnvAccountConfig`: cookie mode, login mode, cookie precedence when both
       are set, default username `cli`, blank handling, partial cookies → error, nothing set → error
       whose message names the variables
-- [ ] write tests for `CliChallengeHandler`: env code wins; mocked `Console` with
+- [x] write tests for `CliChallengeHandler`: env code wins; mocked `Console` with
       `isTerminal()` true prompts; `isTerminal()` false or a null console with no env →
       `CliConfigException`
-- [ ] run tests - must pass before next task
+- [x] run tests - must pass before next task
 
 ### Task 4: JSON output layer
 

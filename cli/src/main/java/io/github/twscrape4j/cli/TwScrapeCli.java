@@ -52,9 +52,7 @@ public class TwScrapeCli implements Callable<Integer> {
         }
         var out = new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8), true);
         var err = new PrintWriter(new OutputStreamWriter(System.err, StandardCharsets.UTF_8), true);
-        ScraperFactory factory = () -> {
-            throw new IllegalStateException("No scraper factory configured");
-        };
+        ScraperFactory factory = new DefaultScraperFactory(System.getenv(), System.console());
         System.exit(newCommandLine(factory, out, err).execute(args));
     }
 
