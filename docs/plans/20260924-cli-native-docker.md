@@ -485,13 +485,13 @@ writes a one-line message to stderr.
 - Create: `Dockerfile`
 - Create: `.dockerignore`
 
-- [ ] builder stage `ghcr.io/graalvm/native-image-community:25` (Oracle Linux 9 slim): run
+- [x] builder stage (image is Oracle Linux 10.1 slim, not 9; curl present, unzip was missing) `ghcr.io/graalvm/native-image-community:25` (Oracle Linux 9 slim): run
       `microdnf install -y tar gzip unzip && microdnf clean all` so `mvnw` can bootstrap Maven
       (verify whether `curl` is present too). Copy the sources, then run
       `./mvnw -B -Pnative -pl cli -am package -DskipTests` with
       `--mount=type=cache,target=/root/.m2`. There is no `dependency:go-offline` step: it breaks
       on the reactor SNAPSHOT dependency, and the cache mount already covers it.
-- [ ] native smoke checks in the builder stage (a failure breaks the image build), using the
+- [x] native smoke checks in the builder stage (a failure breaks the image build), using the
       absolute binary path `B=/src/cli/target/twscrape`:
       - `$B --help` exits 0
       - `$B --version` prints the version
@@ -500,17 +500,17 @@ writes a one-line message to stderr.
         with a network error (not a crash, not 3). This reaches `HttpClientFactory`'s static
         init (the Conscrypt fallback) and the JDK TLS setup in native mode.
       - `ldd $B`: review that only glibc libs are linked (confirms `--static-nolibc`)
-- [ ] runtime stage `gcr.io/distroless/base-debian12:nonroot` (non-root via the tag): copy the
+- [x] runtime stage `gcr.io/distroless/base-debian12:nonroot` (non-root via the tag): copy the
       binary to `/usr/local/bin/twscrape`, `ENTRYPOINT ["/usr/local/bin/twscrape"]`, OCI labels
       (source, version, licenses)
-- [ ] `.dockerignore`: `**/target`, `.git`, `.idea`, `*.iml`, `*.db`, `docs`
-- [ ] **hard gate:** build and run inside the runtime image. `docker build -t twscrape4j-cli .`,
+- [x] `.dockerignore` (also excludes `.claude`): `**/target`, `.git`, `.idea`, `*.iml`, `*.db`, `docs`
+- [x] **hard gate** (verified with the equivalent `podman build`/`podman run`, linux/arm64, image 81.1 MB): build and run inside the runtime image. `docker build -t twscrape4j-cli .`,
       then `docker run --rm twscrape4j-cli --help` must exit 0, and
       `docker run --rm --network=none -e TWSCRAPE_AUTH_TOKEN=x -e TWSCRAPE_CT0=y twscrape4j-cli user @jack`
       must exit 1 with a network error. This catches missing shared libs in distroless.
-- [ ] ⚠️ if the native build fails on missing metadata, fix it in the Task 8 metadata files and add
+- [x] (not needed - native build succeeded without metadata changes) ⚠️ if the native build fails on missing metadata, fix it in the Task 8 metadata files and add
       a matching `NativeConfigTest` assertion, then rerun Task 8 tests
-- [ ] run tests - must pass before next task
+- [x] run tests - must pass before next task
 
 ### Task 10: Verify acceptance criteria
 
