@@ -443,14 +443,18 @@ writes a one-line message to stderr.
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/commands/ListCommandsTest.java`
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/UserRefTest.java`
 
-- [ ] `UserRef`: a picocli type converter; a numeric value → `Id(long)`, `@login` → `Login(String)`,
+- [x] `UserRef`: a picocli type converter; a numeric value → `Id(long)`, `@login` → `Login(String)`,
       anything else → a conversion error. `long resolve(TwScrape)` looks up the login via
       `userByLogin` and throws `NotFoundException` when the user doesn't exist.
-- [ ] user commands and list commands wired to the library methods per the command table
-- [ ] write tests: each command calls the right method, `@login` resolution happens exactly once
+      — a sealed interface with records `Id`/`Login` and a nested `UserRef.Converter`; values over `Long.MAX_VALUE`,
+      `0` and malformed logins are usage errors (exit 2); a bare name gets a "did you mean @name?" hint
+- [x] user commands and list commands wired to the library methods per the command table
+      — nested classes in `UserCommands`/`ListCommands`; `user <login>` also accepts a leading `@`;
+      `user-by-id` and list IDs reuse `PositiveLongConverter`
+- [x] write tests: each command calls the right method, `@login` resolution happens exactly once
       before the stream call, an unknown login → 4, `user` empty → 4, raw variants
-- [ ] write `UserRef` tests: numeric, `@name`, a bare name rejected with a helpful message, overflow
-- [ ] run tests - must pass before next task
+- [x] write `UserRef` tests: numeric, `@name`, a bare name rejected with a helpful message, overflow
+- [x] run tests - must pass before next task
 
 ### Task 8: Native image build profile
 

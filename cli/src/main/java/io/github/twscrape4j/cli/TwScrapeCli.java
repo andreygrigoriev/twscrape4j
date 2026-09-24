@@ -1,8 +1,10 @@
 package io.github.twscrape4j.cli;
 
+import io.github.twscrape4j.cli.commands.ListCommands;
 import io.github.twscrape4j.cli.commands.SearchCommand;
 import io.github.twscrape4j.cli.commands.TrendsCommand;
 import io.github.twscrape4j.cli.commands.TweetCommands;
+import io.github.twscrape4j.cli.commands.UserCommands;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.IExecutionExceptionHandler;
@@ -29,6 +31,14 @@ import java.util.regex.Pattern;
                 TweetCommands.TweetCommand.class,
                 TweetCommands.RepliesCommand.class,
                 TweetCommands.RetweetersCommand.class,
+                UserCommands.UserCommand.class,
+                UserCommands.UserByIdCommand.class,
+                UserCommands.TweetsCommand.class,
+                UserCommands.MediaCommand.class,
+                UserCommands.FollowersCommand.class,
+                UserCommands.FollowingCommand.class,
+                ListCommands.ListTimelineCommand.class,
+                ListCommands.ListMembersCommand.class,
         })
 public class TwScrapeCli implements Callable<Integer> {
 
