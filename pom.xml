@@ -16,6 +16,7 @@
 
     <modules>
         <module>core</module>
+        <module>cli</module>
     </modules>
 
     <properties>
@@ -41,6 +42,7 @@
 
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
+        <maven-shade-plugin.version>3.6.0</maven-shade-plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -138,6 +140,11 @@
                             --add-opens java.base/java.util.concurrent=ALL-UNNAMED
                         </argLine>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>${maven-shade-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>

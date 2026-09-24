@@ -286,34 +286,34 @@ writes a one-line message to stderr.
 - Create: `cli/src/main/resources/simplelogger.properties`
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/TwScrapeCliTest.java`
 
-- [ ] `cli/pom.xml`: depend on `twscrape4j` excluding `sqlite-jdbc`, `jooq` and
+- [x] `cli/pom.xml`: depend on `twscrape4j` excluding `sqlite-jdbc`, `jooq` and
       `conscrypt-openjdk-uber`; add `picocli` and `slf4j-simple`; add the `picocli-codegen`
       annotation processor with `-Aproject=io.github.twscrape4j/twscrape4j-cli`; enable filtering
       for `version.properties`. If `cli` uses Lombok, list both processors explicitly, because a
       child `annotationProcessorPaths` replaces the parent's instead of merging with it.
-- [ ] add `maven-shade-plugin`, producing a runnable `twscrape4j-cli-<version>-all.jar` for JVM
+- [x] add `maven-shade-plugin`, producing a runnable `twscrape4j-cli-<version>-all.jar` for JVM
       use without GraalVM. It needs `ServicesResourceTransformer` (the slf4j 2 binding and Jackson
       services), `ManifestResourceTransformer` (`Main-Class`, `Multi-Release: true`), and filters
       excluding `META-INF/*.SF`, `*.DSA`, `*.RSA` and `module-info.class`.
-- [ ] `TwScrapeCli`: top-level `@Command(name = "twscrape", mixinStandardHelpOptions = true,
+- [x] `TwScrapeCli`: top-level `@Command(name = "twscrape", mixinStandardHelpOptions = true,
       versionProvider = VersionProvider.class)` with no subcommands yet, and a `main` that
       applies `-v` (setting `org.slf4j.simpleLogger.log.io.github.twscrape4j=debug`) before
       picocli runs, then calls `System.exit(newCommandLine(...).execute(args))`. The `-v`
       pre-scan must handle `--verbose` and clustered short flags (`-vh`), and must stop at `--`,
       so that a query that is literally `-v` is not treated as the flag. Add a package-private
       `newCommandLine(ScraperFactory, PrintWriter out, PrintWriter err)` builder for tests.
-- [ ] `simplelogger.properties` (prefixed keys; unprefixed ones are silently ignored):
+- [x] `simplelogger.properties` (prefixed keys; unprefixed ones are silently ignored):
       `org.slf4j.simpleLogger.logFile=System.err`,
       `org.slf4j.simpleLogger.defaultLogLevel=warn`,
       `org.slf4j.simpleLogger.log.io.github.twscrape4j.http.HttpClientFactory=error`
-- [ ] write tests: `--help` exits 0 and prints usage, `--version` prints the project version, an
+- [x] write tests: `--help` exits 0 and prints usage, `--version` prints the project version, an
       unknown subcommand exits 2 with the message on stderr
-- [ ] write a test asserting `sqlite-jdbc`/`jooq`/`conscrypt` classes are not on the CLI test
+- [x] write a test asserting `sqlite-jdbc`/`jooq`/`conscrypt` classes are not on the CLI test
       classpath (`Class.forName` throws), which guards the exclusions
-- [ ] write tests for the `-v` pre-scan: `-v`, `--verbose`, `-vh`, and `search -- -v` (not verbose)
-- [ ] write logging tests: the slf4j factory is not NOP; a normal run does not print the
+- [x] write tests for the `-v` pre-scan: `-v`, `--verbose`, `-vh`, and `search -- -v` (not verbose)
+- [x] write logging tests: the slf4j factory is not NOP; a normal run does not print the
       Conscrypt fallback WARN to stderr; with `-v`, `org.apache.hc` loggers are not DEBUG-enabled
-- [ ] run tests: `./mvnw test` - must pass before next task
+- [x] run tests: `./mvnw test` - must pass before next task
 
 ### Task 3: Stateless account config from environment
 
