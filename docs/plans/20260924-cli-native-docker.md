@@ -416,16 +416,21 @@ writes a one-line message to stderr.
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/commands/SearchCommandTest.java`
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/commands/TweetCommandsTest.java`
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/commands/TrendsCommandTest.java`
+- ➕ Create: `cli/src/main/java/io/github/twscrape4j/cli/commands/PositiveLongConverter.java` (shared ID converter, reused by Task 7)
+- ➕ Create: `cli/src/test/java/io/github/twscrape4j/cli/CliHarness.java` (runs the real command line with a mock, captures stdout/stderr)
+- ➕ Create: `cli/src/test/java/io/github/twscrape4j/cli/commands/Fixtures.java` (model/raw test instances)
 
-- [ ] `search <query> --mode` (case-insensitive enum, default `latest`) → `search`/`searchRaw`
-- [ ] `trends --category` (default `trending`) → `trends`/`trendsRaw` (the list is emitted as a stream)
-- [ ] `tweet <id>` (single, exit 4 when empty), `replies <id>`, `retweeters <id>`. Validate that
+- [x] `search <query> --mode` (case-insensitive enum, default `latest`) → `search`/`searchRaw`
+- [x] `trends --category` (default `trending`) → `trends`/`trendsRaw` (the list is emitted as a stream)
+- [x] `tweet <id>` (single, exit 4 when empty), `replies <id>`, `retweeters <id>`. Validate that
       the ID is a positive long (picocli type conversion → exit 2).
-- [ ] write tests with a mocked `TwScrape`: correct library method and arguments for each
+      — subcommands are declared in the root `@Command(subcommands = ...)`, so they exist before `configure(...)` runs;
+      the three tweet commands are nested classes `TweetCommands.TweetCommand/RepliesCommand/RetweetersCommand`
+- [x] write tests with a mocked `TwScrape`: correct library method and arguments for each
       command, `--raw` uses the `*Raw` method, `--limit` and `--format json` are honored, the mode
       is parsed case-insensitively
-- [ ] write error tests: invalid mode/ID → 2, `tweet` returning empty → 4, `TwitterException` → 1
-- [ ] run tests - must pass before next task
+- [x] write error tests: invalid mode/ID → 2, `tweet` returning empty → 4, `TwitterException` → 1
+- [x] run tests - must pass before next task
 
 ### Task 7: User and list commands
 

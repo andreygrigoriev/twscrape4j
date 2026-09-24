@@ -1,5 +1,8 @@
 package io.github.twscrape4j.cli;
 
+import io.github.twscrape4j.cli.commands.SearchCommand;
+import io.github.twscrape4j.cli.commands.TrendsCommand;
+import io.github.twscrape4j.cli.commands.TweetCommands;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.IExecutionExceptionHandler;
@@ -17,8 +20,16 @@ import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
 /** Root {@code twscrape} command. Results go to stdout; logs and errors go to stderr. */
+// subcommands are declared here so they exist before configure(...) propagates settings to them
 @Command(name = "twscrape", mixinStandardHelpOptions = true, versionProvider = VersionProvider.class,
-        description = "Stateless Twitter/X scraper. Writes results to stdout as JSON Lines or JSON.")
+        description = "Stateless Twitter/X scraper. Writes results to stdout as JSON Lines or JSON.",
+        subcommands = {
+                SearchCommand.class,
+                TrendsCommand.class,
+                TweetCommands.TweetCommand.class,
+                TweetCommands.RepliesCommand.class,
+                TweetCommands.RetweetersCommand.class,
+        })
 public class TwScrapeCli implements Callable<Integer> {
 
     /** slf4j-simple level key for the library's own loggers; httpclient stays quiet to avoid leaking cookies. */
