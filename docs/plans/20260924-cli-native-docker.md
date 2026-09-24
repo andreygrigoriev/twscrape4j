@@ -528,14 +528,14 @@ writes a one-line message to stderr.
 
 ### Task 11: [Final] Update documentation
 
-- [ ] README.md: new "Command-line tool" section covering the command table, env vars, output
+- [x] README.md: new "Command-line tool" section covering the command table, env vars, output
       format/schema, exit codes, JVM jar usage, native build (`./mvnw -Pnative -pl cli -am package`
       needs GraalVM 25) and Docker usage (`docker run --rm -e TWSCRAPE_AUTH_TOKEN -e TWSCRAPE_CT0 twscrape4j-cli search "java" | jq`)
-- [ ] README.md: update build instructions for the multi-module layout (`core/`, `cli/`, `./mvnw`)
-- [ ] CLAUDE.md: document the module layout, the rule "CLI JSON goes through `ModelJson`
+- [x] README.md: update build instructions for the multi-module layout (`core/`, `cli/`, `./mvnw`)
+- [x] CLAUDE.md: document the module layout, the rule "CLI JSON goes through `ModelJson`
       (no reflection) so native builds need no model metadata", the stdout = data / stderr = logs
       rule, and where native-image config lives
-- [ ] move this plan to `docs/plans/completed/`
+- [x] move this plan to `docs/plans/completed/` (skipped - the harness moves the plan after all phases finish)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
