@@ -20,6 +20,10 @@ import java.security.Security;
 @Slf4j
 public class HttpClientFactory {
 
+    /** Browser user agent; X serves the web app (needed for x-client-transaction-id keys) only to browsers. */
+    static final String USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            + "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+
     /** True when Conscrypt native library loaded successfully. */
     static final boolean CONSCRYPT_AVAILABLE;
 
@@ -51,6 +55,7 @@ public class HttpClientFactory {
 
         var builder = HttpClients.custom()
                 .setDefaultCookieStore(cookieStore)
+                .setUserAgent(USER_AGENT)
                 .setConnectionManager(connManager);
 
         if (account.proxy() != null && !account.proxy().isBlank()) {

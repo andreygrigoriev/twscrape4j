@@ -12,8 +12,8 @@ import java.util.Map;
 
 public class TrendsOperation {
 
-    private static final String OPERATION_ID = "tQ_TNzs-EKuRvpQVpHZqQQ";
-    private static final String OPERATION_NAME = "ExplorePage";
+    private static final String OPERATION_ID = "ee4dBLWL8a8qg6n19m1htQ";
+    private static final String OPERATION_NAME = "GenericTimelineById";
 
     private final GraphQLClient graphQLClient;
 
@@ -25,7 +25,7 @@ public class TrendsOperation {
         var handle = pool.acquire(OPERATION_NAME);
         try {
             var response = graphQLClient.get(handle, OPERATION_ID, OPERATION_NAME,
-                    Map.of("categoryId", categoryId(category)), Map.of());
+                    variables(category), Map.of());
             pool.updateRateLimit(handle.account().username(), OPERATION_NAME,
                     response.rateLimitRemaining(), response.rateLimitResetAt());
             return parseTrends(response.body());
@@ -38,7 +38,7 @@ public class TrendsOperation {
         var handle = pool.acquire(OPERATION_NAME);
         try {
             var response = graphQLClient.get(handle, OPERATION_ID, OPERATION_NAME,
-                    Map.of("categoryId", categoryId(category)), Map.of());
+                    variables(category), Map.of());
             pool.updateRateLimit(handle.account().username(), OPERATION_NAME,
                     response.rateLimitRemaining(), response.rateLimitResetAt());
             return parseTrendNodes(response.body());
@@ -53,23 +53,34 @@ public class TrendsOperation {
 
     private List<JsonNode> parseTrendNodes(JsonNode body) {
         var trends = new ArrayList<JsonNode>();
-        JsonNode entries = body.path("data").path("explore_page").path("body")
-                .path("initialTimeline").path("timeline").path("instructions");
-        for (JsonNode instruction : entries) {
-            for (JsonNode entry : instruction.path("entries")) {
-                JsonNode item = entry.path("content").path("content").path("timelineTrend");
-                if (!item.isMissingNode()) trends.add(item);
-            }
-        }
+        collectTrends(body, trends);
         return trends;
     }
 
-    private String categoryId(TrendCategory category) {
+    /** Trend items sit at varying depths of the timeline; collect every TimelineTrend object. */
+    private void collectTrends(JsonNode node, List<JsonNode> out) {
+        if (node.isObject() && "TimelineTrend".equals(node.path("__typename").asText(""))) {
+            out.add(node);
+            return;
+        }
+        if (node.isContainer()) {
+            for (JsonNode child : node) collectTrends(child, out);
+        }
+    }
+
+    private Map<String, Object> variables(TrendCategory category) {
+        return Map.of(
+                "timelineId", timelineId(category),
+                "count", 20,
+                "withQuickPromoteEligibilityTweetFields", true);
+    }
+
+    private String timelineId(TrendCategory category) {
         return switch (category) {
-            case NEWS -> "1";
-            case SPORT -> "2";
-            case ENTERTAINMENT -> "3";
-            case TRENDING -> "4";
+            case TRENDING -> "VGltZWxpbmU6DAC2CwABAAAACHRyZW5kaW5nAAA";
+            case NEWS -> "VGltZWxpbmU6DAC2CwABAAAABG5ld3MAAA";
+            case SPORT -> "VGltZWxpbmU6DAC2CwABAAAABnNwb3J0cwAA";
+            case ENTERTAINMENT -> "VGltZWxpbmU6DAC2CwABAAAADWVudGVydGFpbm1lbnQAAA";
         };
     }
 }

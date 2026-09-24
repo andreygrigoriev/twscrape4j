@@ -10,7 +10,7 @@ import java.util.Map;
 
 public class UserMediaOperation {
 
-    private static final String OPERATION_ID = "oMVVrI5kt3kOpyHHTTKf5Q";
+    private static final String OPERATION_ID = "VyudDWQnr9vJNw7GasFz2g";
     private static final String OPERATION_NAME = "UserMedia";
 
     private final GraphQLClient graphQLClient;

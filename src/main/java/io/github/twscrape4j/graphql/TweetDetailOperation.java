@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public class TweetDetailOperation {
 
-    private static final String OPERATION_ID = "0hWvDhmW8YQ-S_ib3azIrw";
+    private static final String OPERATION_ID = "XMOz5h24KAZ86qKffKTLdQ";
     private static final String OPERATION_NAME = "TweetDetail";
 
     private final GraphQLClient graphQLClient;

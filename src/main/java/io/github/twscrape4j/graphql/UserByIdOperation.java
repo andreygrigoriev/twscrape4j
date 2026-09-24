@@ -10,8 +10,8 @@ import java.util.Optional;
 
 public class UserByIdOperation {
 
-    private static final String OPERATION_ID = "GazOglcBvgLigl3ywt6b3Q";
-    private static final String OPERATION_NAME = "UserById";
+    private static final String OPERATION_ID = "xvmVfRLmnr1alc5f2dib0Q";
+    private static final String OPERATION_NAME = "UserByRestId";
 
     private final GraphQLClient graphQLClient;
 
@@ -28,7 +28,7 @@ public class UserByIdOperation {
         try {
             var response = graphQLClient.get(handle, OPERATION_ID, OPERATION_NAME,
                     Map.of("userId", String.valueOf(userId), "withSafetyModeUserFields", true),
-                    Map.of());
+                    UserFeatures.FLAGS);
             pool.updateRateLimit(handle.account().username(), OPERATION_NAME,
                     response.rateLimitRemaining(), response.rateLimitResetAt());
             JsonNode result = response.body().path("data").path("user").path("result");

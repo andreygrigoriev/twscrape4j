@@ -11,7 +11,7 @@ import java.util.Map;
 
 public class UserFollowingOperation {
 
-    private static final String OPERATION_ID = "eWTmcJY3EMh-dxITvBRRgA";
+    private static final String OPERATION_ID = "qGZZDF3mp91q7X22s3HxpA";
     private static final String OPERATION_NAME = "Following";
 
     private final GraphQLClient graphQLClient;

@@ -10,7 +10,7 @@ import java.util.Map;
 
 public class TweetRepliesOperation {
 
-    private static final String OPERATION_ID = "0hWvDhmW8YQ-S_ib3azIrw";
+    private static final String OPERATION_ID = "XMOz5h24KAZ86qKffKTLdQ";
     private static final String OPERATION_NAME = "TweetDetail";
 
     private final GraphQLClient graphQLClient;
@@ -30,10 +30,13 @@ public class TweetRepliesOperation {
         try {
             var vars = new HashMap<String, Object>();
             vars.put("focalTweetId", String.valueOf(tweetId));
+            vars.put("referrer", "tweet");
             vars.put("count", 20);
             vars.put("with_rux_injections", false);
             vars.put("includePromotedContent", true);
             vars.put("withCommunity", true);
+            vars.put("withQuickPromoteEligibilityTweetFields", true);
+            vars.put("withBirdwatchNotes", true);
             vars.put("withVoice", true);
             if (cursor != null) vars.put("cursor", cursor);
 

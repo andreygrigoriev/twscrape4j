@@ -12,7 +12,7 @@ import java.util.Map;
 
 public class TweetRetweetersOperation {
 
-    private static final String OPERATION_ID = "U5f_jm0CiLmSfI1d4rGleA";
+    private static final String OPERATION_ID = "ROjiuYueotTnWoI8m2YaiQ";
     private static final String OPERATION_NAME = "Retweeters";
 
     private final GraphQLClient graphQLClient;

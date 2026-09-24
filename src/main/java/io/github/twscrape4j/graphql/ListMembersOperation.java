@@ -11,7 +11,7 @@ import java.util.Map;
 
 public class ListMembersOperation {
 
-    private static final String OPERATION_ID = "9ZtB6OnPsRffBBFBzHF_5Q";
+    private static final String OPERATION_ID = "8rYmkvWQe9jRRZdy_-vkGA";
     private static final String OPERATION_NAME = "ListMembers";
 
     private final GraphQLClient graphQLClient;

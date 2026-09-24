@@ -45,11 +45,11 @@ class TrendsOperationTest {
 
     private String trendsJson(String name, long tweetCount) {
         return """
-                {"data":{"explore_page":{"body":{"initialTimeline":{"timeline":{"instructions":[
-                  {"entries":[
-                    {"content":{"content":{"timelineTrend":{"name":"%s","tweet_count":%d}}}}
+                {"data":{"timeline":{"timeline":{"instructions":[
+                  {"type":"TimelineAddEntries","entries":[
+                    {"content":{"itemContent":{"__typename":"TimelineTrend","name":"%s","tweet_count":%d}}}
                   ]}
-                ]}}}}}}
+                ]}}}}
                 """.formatted(name, tweetCount);
     }
 
@@ -89,7 +89,7 @@ class TrendsOperationTest {
 
         verify(pool).updateRateLimit(
                 eq("alice"),
-                eq("ExplorePage"),
+                eq("GenericTimelineById"),
                 eq(graphResponse.rateLimitRemaining()),
                 eq(graphResponse.rateLimitResetAt()));
     }
@@ -97,7 +97,7 @@ class TrendsOperationTest {
     @Test
     void fetchReturnsEmptyListWhenNoTrends() throws Exception {
         String json = """
-                {"data":{"explore_page":{"body":{"initialTimeline":{"timeline":{"instructions":[]}}}}}}
+                {"data":{"timeline":{"timeline":{"instructions":[]}}}}
                 """;
         when(graphQLClient.get(any(), any(), any(), any(), any())).thenReturn(response(json));
 
@@ -107,17 +107,17 @@ class TrendsOperationTest {
 
     @ParameterizedTest
     @EnumSource(TrendCategory.class)
-    void allCategoriesPassDifferentCategoryIds(TrendCategory category) throws Exception {
+    void allCategoriesPassTimelineIds(TrendCategory category) throws Exception {
         when(graphQLClient.get(any(), any(), any(), any(), any()))
                 .thenReturn(response(trendsJson("trend", 1)));
 
         var op = new TrendsOperation(graphQLClient);
         List<Trend> trends = op.fetch(category, pool);
 
-        // Verify call was made (category ID mapping exercised for all enum values)
-        verify(graphQLClient).get(any(), any(), eq("ExplorePage"), argThat(vars -> {
-            Object catId = vars.get("categoryId");
-            return catId != null && !catId.toString().isBlank();
+        // Verify call was made (timeline ID mapping exercised for all enum values)
+        verify(graphQLClient).get(any(), any(), eq("GenericTimelineById"), argThat(vars -> {
+            Object timelineId = vars.get("timelineId");
+            return timelineId != null && !timelineId.toString().isBlank();
         }), any());
         assertFalse(trends.isEmpty());
     }

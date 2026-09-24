@@ -14,7 +14,7 @@ import java.util.Map;
 public class SearchTimelineOperation {
 
     // Update from twscrape source when Twitter rotates these
-    private static final String OPERATION_ID = "nK1dw4oV3k4w5TdtcAdSww";
+    private static final String OPERATION_ID = "hyPfJYJ_XAtDYoslQc-Rgg";
     private static final String OPERATION_NAME = "SearchTimeline";
 
     private final GraphQLClient graphQLClient;
@@ -44,7 +44,7 @@ public class SearchTimelineOperation {
         var handle = pool.acquire(OPERATION_NAME);
         try {
             Map<String, Object> variables = buildVariables(rawQuery, mode, cursor);
-            var response = graphQLClient.get(handle, OPERATION_ID, OPERATION_NAME, variables, features());
+            var response = graphQLClient.get(handle, OPERATION_ID, OPERATION_NAME, variables, Map.of());
             pool.updateRateLimit(handle.account().username(), OPERATION_NAME,
                     response.rateLimitRemaining(), response.rateLimitResetAt());
             return response;
@@ -73,19 +73,5 @@ public class SearchTimelineOperation {
                 .path("search_timeline")
                 .path("timeline")
                 .path("instructions");
-    }
-
-    private static Map<String, Object> features() {
-        return Map.of(
-                "rweb_tipjar_consumption_enabled", true,
-                "responsive_web_graphql_exclude_directive_enabled", true,
-                "verified_phone_label_enabled", false,
-                "creator_subscriptions_tweet_preview_api_enabled", true,
-                "responsive_web_graphql_timeline_navigation_enabled", true,
-                "responsive_web_graphql_skip_user_profile_image_extensions_enabled", false,
-                "tweetypie_unmention_optimization_enabled", true,
-                "responsive_web_edit_tweet_api_enabled", true,
-                "graphql_is_translatable_rweb_tweet_is_translatable_enabled", true
-        );
     }
 }
