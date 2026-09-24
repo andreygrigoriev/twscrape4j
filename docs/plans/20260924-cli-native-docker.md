@@ -358,24 +358,27 @@ writes a one-line message to stderr.
 - Create: `cli/src/main/java/io/github/twscrape4j/cli/OutputOptions.java` (picocli `@Mixin`: `--format`, `--limit`, `--raw`; `--limit` validation `-1` or ≥ 1)
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/ModelJsonTest.java`
 - Create: `cli/src/test/java/io/github/twscrape4j/cli/JsonOutputTest.java`
+- ➕ Modify: `cli/src/main/java/io/github/twscrape4j/cli/TwScrapeCli.java` (case-insensitive enum values, so `--format json` works)
 
-- [ ] `ModelJson`: `ObjectNode tweet(Tweet)`, `user(User)`, `trend(Trend)`, following the
+- [x] `ModelJson`: `ObjectNode tweet(Tweet)`, `user(User)`, `trend(Trend)`, following the
       schema in Technical Details. IDs as strings, `Instant` as ISO-8601, nulls omitted, `url`
       derived from the username. Tree model only, with no reflection-based `valueToTree` and no
       annotations.
-- [ ] `JsonOutput(PrintWriter out, OutputOptions opts)`: `writeStream(Stream<? extends JsonNode>)`
+      — `conversationId` is omitted when 0 (the core mapper yields 0 when `conversation_id_str` is absent);
+      tweet `url` is omitted when the author or its username is missing
+- [x] `JsonOutput(PrintWriter out, OutputOptions opts)`: `writeStream(Stream<? extends JsonNode>)`
       applies the limit (`-1` means unlimited). JSONL writes one compact line per item and
       flushes it. JSON collects the items first, then writes a pretty array, so an exception
       mid-stream leaves stdout empty. Add `writeSingle(JsonNode)`. Use a single
       `JsonMapper.builder().build()` mapper.
-- [ ] write tests for `ModelJson`: full tweet with nested author/stats, nullable fields omitted,
+- [x] write tests for `ModelJson`: full tweet with nested author/stats, nullable fields omitted,
       a large ID (> 2^53) round-trips exactly as a string, a user with no username has no `url`
-- [ ] write tests for `JsonOutput`: JSONL line count equals the limit, `-1` writes everything,
+- [x] write tests for `JsonOutput`: JSONL line count equals the limit, `-1` writes everything,
       an empty stream writes nothing in JSONL and `[]` in JSON, JSON output parses back as an
       array, and the stream is lazily cut (the supplier is not advanced past the limit)
-- [ ] write mid-stream error tests: in JSON mode, the exception propagates and nothing is written;
+- [x] write mid-stream error tests: in JSON mode, the exception propagates and nothing is written;
       in JSONL mode, the lines before the failure are present
-- [ ] run tests - must pass before next task
+- [x] run tests - must pass before next task
 
 ### Task 5: Base data command and exit-code mapping
 

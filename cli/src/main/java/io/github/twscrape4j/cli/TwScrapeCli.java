@@ -59,6 +59,7 @@ public class TwScrapeCli implements Callable<Integer> {
     /** Builds the configured command line; tests pass their own factory and writers. */
     static CommandLine newCommandLine(ScraperFactory factory, PrintWriter out, PrintWriter err) {
         var cmd = new CommandLine(new TwScrapeCli(factory));
+        cmd.setCaseInsensitiveEnumValuesAllowed(true);
         cmd.setOut(out);
         cmd.setErr(err);
         return cmd;
