@@ -247,28 +247,32 @@ writes a one-line message to stderr.
 - Move: `src/` → `core/src/` (`git mv`)
 - Create: `mvnw`, `mvnw.cmd`, `.mvn/wrapper/maven-wrapper.properties`
 
-- [ ] commit the pending working-tree changes on `fix/graphql-404-transaction-id`, merge that
+- [x] commit the pending working-tree changes on `fix/graphql-404-transaction-id`, merge that
       branch into `main`, then create `feat/cli-native-docker` from `main` (see ⚠️ in Context;
       requested by the user during plan review)
-- [ ] `git mv src core/src`. Create `core/pom.xml` holding the current dependencies, the Lombok
+      — done by orchestrator; spurious 644->755 file-mode flips were reverted, not committed
+- [x] `git mv src core/src`. Create `core/pom.xml` holding the current dependencies, the Lombok
       annotation processor config and surefire `argLine`.
-- [ ] turn the root `pom.xml` into a parent: shared `properties` (keep the `<jackson.version>`
+- [x] turn the root `pom.xml` into a parent: shared `properties` (keep the `<jackson.version>`
       comment), `dependencyManagement` for all versions (add `picocli.version`; manage both
       `slf4j-api` and `slf4j-simple` at `${slf4j.version}` = 2.0.17, because httpclient5 brings in
       slf4j-api 1.7.x), `pluginManagement` for compiler/surefire, and `<modules>core</modules>`
       (`cli` is added in Task 2)
-- [ ] parent `pluginManagement` holds the **full** surefire `<configuration>`, including the
+- [x] parent `pluginManagement` holds the **full** surefire `<configuration>`, including the
       `argLine` with `-Dnet.bytebuddy.experimental=true` and the `--add-opens`, so that Mockito
       mocks of `final TwScrape` work on Java 25 in `cli` too. Alternatively, upgrade Mockito to a
       release that uses byte-buddy ≥ 1.17 and drop the experimental flag.
-- [ ] note on publishing: `core/pom.xml` now has a `<parent>`, so `twscrape4j-parent` must be
+      — kept the experimental flag (Mockito not upgraded)
+- [x] note on publishing: `core/pom.xml` now has a `<parent>`, so `twscrape4j-parent` must be
       deployed along with `twscrape4j` (or use `flatten-maven-plugin`). Library coordinates are
       unchanged.
-- [ ] generate the Maven wrapper (`mvn wrapper:wrapper`) so Docker and contributors can build
+      — documented as a comment at the top of the parent `pom.xml`
+- [x] generate the Maven wrapper (`mvn wrapper:wrapper`) so Docker and contributors can build
       without a local Maven
-- [ ] verify no test changes are needed: `./mvnw -pl core test` must pass with the same test count
+- [x] verify no test changes are needed: `./mvnw -pl core test` must pass with the same test count
       as before the move
-- [ ] run tests - must pass before next task
+      — 127 run / 4 skipped both before and after the move
+- [x] run tests - must pass before next task
 
 ### Task 2: CLI module skeleton with root command
 
