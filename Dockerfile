@@ -61,8 +61,8 @@ RUN --network=none set -eu; B=/src/cli/target/twscrape; \
 FROM gcr.io/distroless/base-debian12:nonroot@sha256:7f0c72cd138b442ae0deeb69c08b1acf5525439ba251a49ad93c320a061567e5
 
 ARG VERSION=0.1.0-SNAPSHOT
-ARG SOURCE=https://github.com/twscrape4j/twscrape4j
-ARG LICENSES=NOASSERTION
+ARG SOURCE=https://github.com/andreygrigoriev/twscrape4j
+ARG LICENSES=MIT
 
 LABEL org.opencontainers.image.title="twscrape4j-cli" \
       org.opencontainers.image.description="Stateless twscrape command-line tool (GraalVM native)" \

@@ -33,8 +33,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class NativeConfigTest {
 
     private static final ObjectMapper MAPPER = JsonMapper.builder().build();
-    private static final String CONFIG_DIR = "META-INF/native-image/io.github.twscrape4j/twscrape4j-cli/";
-    private static final String PICOCLI_DIR = "META-INF/native-image/picocli-generated/io.github.twscrape4j/twscrape4j-cli/";
+    private static final String CONFIG_DIR = "META-INF/native-image/io.github.andreygrigoriev/twscrape4j-cli/";
+    private static final String PICOCLI_DIR = "META-INF/native-image/picocli-generated/io.github.andreygrigoriev/twscrape4j-cli/";
     private static final Set<String> RESOURCES = Set.of(
             "io/github/twscrape4j/cli/version.properties",
             "simplelogger.properties",

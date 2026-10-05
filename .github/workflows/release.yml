@@ -1,0 +1,140 @@
+# Release: push a tag matching the POM version, e.g.
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# 1. test      ./mvnw verify on the JVM
+# 2. native    native twscrape binaries per OS/arch (native-image cannot cross-compile), smoke-tested,
+#              packaged as twscrape-<version>-<os>-<arch>.tar.gz plus a .sha256 file
+# 3. release   GitHub Release with the archives and checksums
+# 4. homebrew  renders packaging/homebrew/twscrape.rb.in and pushes it to andreygrigoriev/homebrew-tap
+#              (needs the HOMEBREW_TAP_TOKEN secret; skipped for pre-release tags such as v0.2.0-rc1)
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - run: ./mvnw -B verify
+
+  native:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - { runner: macos-15, os: macos, arch: arm64 }
+          - { runner: macos-15-intel, os: macos, arch: x86_64 }
+          # oldest supported Ubuntu: the binary links glibc dynamically, so build against an old one
+          - { runner: ubuntu-22.04, os: linux, arch: x86_64 }
+          - { runner: ubuntu-22.04-arm, os: linux, arch: arm64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: graalvm-community
+          java-version: '25'
+          cache: maven
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build native executable
+        run: ./mvnw -B -Pnative -pl cli -am package -DskipTests
+      - name: Smoke test
+        run: |
+          set -eu
+          B=cli/target/twscrape
+          version=${GITHUB_REF_NAME#v}
+          machine=$(uname -m)
+          [ "$machine" = aarch64 ] && machine=arm64
+          [ "$machine" = "${{ matrix.arch }}" ] || { echo "::error::runner is $machine, expected ${{ matrix.arch }}"; exit 1; }
+          "$B" --help > /dev/null
+          "$B" --version | tee version.txt
+          grep -qx "twscrape $version" version.txt || { echo "::error::tag $GITHUB_REF_NAME does not match the binary version"; exit 1; }
+          rc=0; env -i "$B" search foo > /dev/null 2> err.txt || rc=$?
+          cat err.txt
+          [ "$rc" -eq 3 ] || { echo "::error::expected exit 3 without credentials, got $rc"; exit 1; }
+      - name: Package
+        run: |
+          set -eu
+          name="twscrape-${GITHUB_REF_NAME#v}-${{ matrix.os }}-${{ matrix.arch }}"
+          mkdir -p "dist/$name"
+          cp cli/target/twscrape LICENSE "dist/$name/"
+          cd dist
+          tar -czf "$name.tar.gz" "$name"
+          shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+          cat "$name.tar.gz.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*.tar.gz*
+          if-no-files-found: error
+
+  release:
+    needs: native
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=()
+          [[ $GITHUB_REF_NAME == *-* ]] && prerelease=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
+            --generate-notes --verify-tag "${prerelease[@]}"
+
+  homebrew:
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check tap token
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          [ -n "$HOMEBREW_TAP_TOKEN" ] || { echo "::error::HOMEBREW_TAP_TOKEN secret is not set"; exit 1; }
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+      - name: Render formula
+        run: packaging/homebrew/render-formula.sh "${GITHUB_REF_NAME#v}" dist > twscrape.rb
+      - uses: actions/checkout@v5
+        with:
+          repository: andreygrigoriev/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+      - name: Push formula to the tap
+        run: |
+          set -eu
+          mkdir -p tap/Formula
+          cp twscrape.rb tap/Formula/twscrape.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/twscrape.rb
+          if git diff --cached --quiet; then
+            echo "formula unchanged"
+          else
+            git commit -m "twscrape ${GITHUB_REF_NAME#v}"
+            git push
+          fi
