@@ -5,13 +5,15 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.github.twscrape4j</groupId>
+        <groupId>io.github.andreygrigoriev</groupId>
         <artifactId>twscrape4j-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.1.0</version>
     </parent>
 
     <artifactId>twscrape4j</artifactId>
     <packaging>jar</packaging>
+
+    <name>twscrape4j</name>
 
     <dependencies>
         <!-- HTML parsing for x-client-transaction-id key extraction -->

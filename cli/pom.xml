@@ -5,13 +5,16 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.github.twscrape4j</groupId>
+        <groupId>io.github.andreygrigoriev</groupId>
         <artifactId>twscrape4j-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.1.0</version>
     </parent>
 
     <artifactId>twscrape4j-cli</artifactId>
     <packaging>jar</packaging>
+
+    <name>twscrape4j-cli</name>
+    <description>twscrape command-line tool built on twscrape4j</description>
 
     <properties>
         <main.class>io.github.twscrape4j.cli.TwScrapeCli</main.class>
@@ -23,7 +26,7 @@
             does not load reliably in native image; HttpClientFactory falls back to JDK TLS without it.
         -->
         <dependency>
-            <groupId>io.github.twscrape4j</groupId>
+            <groupId>io.github.andreygrigoriev</groupId>
             <artifactId>twscrape4j</artifactId>
             <exclusions>
                 <exclusion>
@@ -154,7 +157,7 @@
     <profiles>
         <!--
             GraalVM native executable: ./mvnw -Pnative -pl cli -am package
-            Build flags live in META-INF/native-image/io.github.twscrape4j/twscrape4j-cli/native-image.properties;
+            Build flags live in META-INF/native-image/io.github.andreygrigoriev/twscrape4j-cli/native-image.properties;
             the Linux-only static-nolibc flag comes from the native-linux profile below.
         -->
         <profile>

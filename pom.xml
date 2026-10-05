@@ -1,18 +1,54 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
+<project child.project.url.inherit.append.path="false"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <!--
-        Parent POM. Publishing note: core/pom.xml references this parent, so twscrape4j-parent must be
-        deployed together with twscrape4j (or flatten the core POM with flatten-maven-plugin).
-        Library coordinates (io.github.twscrape4j:twscrape4j) are unchanged.
+        Parent POM. Publishing note: core/pom.xml references this parent, so twscrape4j-parent is deployed
+        together with twscrape4j. Release to Maven Central: ./mvnw -Prelease clean deploy (see the release profile).
     -->
-    <groupId>io.github.twscrape4j</groupId>
+    <groupId>io.github.andreygrigoriev</groupId>
     <artifactId>twscrape4j-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>pom</packaging>
+
+    <name>twscrape4j</name>
+    <description>Java library for scraping Twitter/X via its GraphQL API</description>
+    <url>https://github.com/andreygrigoriev/twscrape4j</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>andreygrigoriev</id>
+            <name>Andrei Grigorev</name>
+            <email>andreyko.gr@gmail.com</email>
+            <url>https://github.com/andreygrigoriev</url>
+        </developer>
+    </developers>
+
+    <!-- child.*.inherit.append.path=false: modules inherit these URLs as-is instead of appending their artifactId -->
+    <scm child.scm.connection.inherit.append.path="false"
+         child.scm.developerConnection.inherit.append.path="false"
+         child.scm.url.inherit.append.path="false">
+        <connection>scm:git:https://github.com/andreygrigoriev/twscrape4j.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/andreygrigoriev/twscrape4j.git</developerConnection>
+        <url>https://github.com/andreygrigoriev/twscrape4j</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/andreygrigoriev/twscrape4j/issues</url>
+    </issueManagement>
 
     <modules>
         <module>core</module>
@@ -44,12 +80,16 @@
         <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.6.0</maven-shade-plugin.version>
         <native-maven-plugin.version>1.1.14</native-maven-plugin.version>
+        <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
+        <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
+        <central-publishing-maven-plugin.version>0.8.0</central-publishing-maven-plugin.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>io.github.twscrape4j</groupId>
+                <groupId>io.github.andreygrigoriev</groupId>
                 <artifactId>twscrape4j</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -155,4 +195,76 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <!--
+            Maven Central release: ./mvnw -Prelease clean deploy
+            Needs a "central" server (Central Portal user token) in ~/.m2/settings.xml and a GPG key for signing.
+            The upload stops at central.sonatype.com/publishing/deployments for a manual "Publish" (autoPublish=false).
+            Only twscrape4j-parent and twscrape4j are published; the CLI ships as -all.jar / native binary instead.
+        -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven-javadoc-plugin.version}</version>
+                        <configuration>
+                            <doclint>none</doclint>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                            <excludeArtifacts>
+                                <excludeArtifact>twscrape4j-cli</excludeArtifact>
+                            </excludeArtifacts>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

@@ -13,10 +13,10 @@ Inspired by the Python library [twscrape](https://github.com/vladkens/twscrape).
 
 The project is a multi-module Maven build:
 
-| Module  | Artifact                                  | Contents                                          |
-|---------|-------------------------------------------|---------------------------------------------------|
-| `core/` | `io.github.twscrape4j:twscrape4j`         | the library (the artifact library users depend on) |
-| `cli/`  | `io.github.twscrape4j:twscrape4j-cli`     | the `twscrape` command-line tool (picocli)        |
+| Module  | Artifact                                   | Contents                                           |
+|---------|--------------------------------------------|----------------------------------------------------|
+| `core/` | `io.github.andreygrigoriev:twscrape4j`     | the library (the artifact library users depend on) |
+| `cli/`  | `io.github.andreygrigoriev:twscrape4j-cli` | the `twscrape` command-line tool (picocli)         |
 
 ```bash
 ./mvnw verify                  # build and test all modules
@@ -69,7 +69,7 @@ try (var scraper = TwScrape.create(repo)) {
 
 ```xml
 <dependency>
-    <groupId>io.github.twscrape4j</groupId>
+    <groupId>io.github.andreygrigoriev</groupId>
     <artifactId>twscrape4j</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
@@ -147,6 +147,18 @@ twscrape tweets @jack --limit -1 > tweets.jsonl
 `twscrape` in these examples is the [native executable](#native-executable). Without it, use the
 [shaded jar](#running-on-the-jvm) (`alias twscrape='java -jar cli/target/twscrape4j-cli-*-all.jar'`)
 or the [Docker image](#docker) (`docker run --rm -e TWSCRAPE_AUTH_TOKEN -e TWSCRAPE_CT0 twscrape4j-cli`).
+
+### Install with Homebrew
+
+Prebuilt native binaries for macOS and Linux (arm64 and x86_64) are published with each
+[GitHub Release](https://github.com/andreygrigoriev/twscrape4j/releases):
+
+```bash
+brew install andreygrigoriev/tap/twscrape
+```
+
+Without Homebrew, download `twscrape-<version>-<os>-<arch>.tar.gz` from the release page, check it
+against its `.sha256` file and put `twscrape` on your `PATH`.
 
 ### Commands
 
