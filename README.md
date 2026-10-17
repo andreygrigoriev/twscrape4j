@@ -1,36 +1,72 @@
+<div align="center">
+
 # twscrape4j
 
-Java 25+ library for scraping X/Twitter's internal GraphQL API. Manages a pool of authenticated accounts, rotates them on rate limits, and streams results lazily via `Stream<T>`.
+**Scrape X/Twitter from Java: an account pool, automatic rate-limit rotation and lazy `Stream<T>` results.**
 
-Inspired by the Python library [twscrape](https://github.com/vladkens/twscrape).
+A Java 25 port of the Python [twscrape](https://github.com/vladkens/twscrape), with a native `twscrape` CLI.
 
-## Requirements
+[![Release](https://github.com/andreygrigoriev/twscrape4j/actions/workflows/release.yml/badge.svg)](https://github.com/andreygrigoriev/twscrape4j/actions/workflows/release.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.andreygrigoriev/twscrape4j?label=Maven%20Central&color=blue)](https://central.sonatype.com/artifact/io.github.andreygrigoriev/twscrape4j)
+[![GitHub release](https://img.shields.io/github/v/release/andreygrigoriev/twscrape4j?include_prereleases&sort=semver)](https://github.com/andreygrigoriev/twscrape4j/releases)
+[![Java 25+](https://img.shields.io/badge/Java-25%2B-orange?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/25/)
+[![GraalVM native](https://img.shields.io/badge/GraalVM-native%20image-E86F00?logo=oracle&logoColor=white)](#native-executable)
+[![Homebrew](https://img.shields.io/badge/homebrew-andreygrigoriev%2Ftap-FBB040?logo=homebrew&logoColor=white)](#install-with-homebrew)
+[![License: MIT](https://img.shields.io/github/license/andreygrigoriev/twscrape4j)](LICENSE)
 
-- Java 25+
-- Maven 3.9+ (or the bundled Maven wrapper `./mvnw`)
+[Quick start](#quick-start) •
+[Library](#library-guide) •
+[CLI](#command-line-tool) •
+[Building](#building-from-source) •
+[Maintenance](#keeping-operation-ids-current)
 
-## Building
+</div>
 
-The project is a multi-module Maven build:
+---
 
-| Module  | Artifact                                   | Contents                                           |
-|---------|--------------------------------------------|----------------------------------------------------|
-| `core/` | `io.github.andreygrigoriev:twscrape4j`     | the library (the artifact library users depend on) |
-| `cli/`  | `io.github.andreygrigoriev:twscrape4j-cli` | the `twscrape` command-line tool (picocli)         |
+## Features
 
-```bash
-./mvnw verify                  # build and test all modules
-./mvnw -pl core -am install    # install the library and its parent POM (twscrape4j-parent) to ~/.m2
-./mvnw -pl cli -am package     # build the CLI (and core); produces cli/target/twscrape4j-cli-<version>-all.jar
+- 🔎 **Search, users, tweets, lists, trends:** covers the X web app's internal GraphQL API.
+- 🔄 **Account pool:** add several accounts; when one hits a rate limit, requests move to the next.
+- 🌊 **Lazy pagination:** results are `Stream<T>`; pages load on demand, so `.limit(n)` stops fetching early.
+- 🧩 **Typed models and raw JSON:** `Tweet`, `User` and `Trend` records, plus `*Raw` variants returning `JsonNode`.
+- 💾 **Pluggable storage:** in-memory, SQLite, or your own `AccountRepository`.
+- 🔐 **Browser-like TLS:** Conscrypt (BoringSSL) for a browser JA3 fingerprint, with JDK fallback.
+- ⚡ **`twscrape` CLI:** a GraalVM native binary that writes JSON Lines for `jq`, installable via Homebrew or Docker.
+
+## How it works
+
+```mermaid
+flowchart LR
+    app["Your code<br/>or twscrape CLI"] --> api["TwScrape"]
+    api --> pool["AccountPool"]
+    pool --> repo[("AccountRepository<br/>in-memory · SQLite · custom")]
+    pool -.-> rl["RateLimitTracker"]
+    api --> ops["GraphQL operations<br/>(paginating Stream)"]
+    ops --> gql["GraphQLClient<br/>+ x-client-transaction-id"]
+    gql --> x[("x.com<br/>GraphQL API")]
 ```
 
-The library POM inherits from `twscrape4j-parent`, so consumers resolving it from a repository need the
-parent POM there too (`-am` installs it; a plain `-pl core install` does not).
-
-The library artifact has no dependency on picocli, slf4j-simple or the native-image setup; those
-live only in `cli/`.
-
 ## Quick start
+
+### Library
+
+```xml
+<dependency>
+    <groupId>io.github.andreygrigoriev</groupId>
+    <artifactId>twscrape4j</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
+
+<details>
+<summary>Gradle</summary>
+
+```kotlin
+implementation("io.github.andreygrigoriev:twscrape4j:0.1.0")
+```
+
+</details>
 
 No database needed for one-off scripts:
 
@@ -47,7 +83,62 @@ try (var scraper = TwScrape.create()) {
 }
 ```
 
-For persistent sessions (accounts survive restart), use `SqliteAccountRepository`:
+### CLI
+
+```bash
+brew install andreygrigoriev/tap/twscrape
+
+export TWSCRAPE_AUTH_TOKEN=... TWSCRAPE_CT0=...
+twscrape search "#java" --limit 5 | jq -r .text
+```
+
+> [!IMPORTANT]
+> twscrape4j uses X's undocumented internal API with real accounts. It is not affiliated with X Corp.
+> Automated access may violate X's Terms of Service and can get accounts locked; use accounts you
+> can afford to lose.
+
+---
+
+## Library guide
+
+### Requirements
+
+- Java 25+
+- Jackson 3.x (`tools.jackson.*`), pulled in transitively; see [Jackson 3 notes](#jackson-3-toolsjackson)
+
+### Account setup
+
+#### Cookie-based (recommended, most stable)
+
+Export `auth_token` and `ct0` from your browser's cookie store for `x.com`, then:
+
+```java
+scraper.addAccountByCookies("username", "auth_token_value", "ct0_value");
+```
+
+#### Username/password login (best-effort)
+
+```java
+scraper.addAccount("username", "password", "email@example.com");
+```
+
+> [!WARNING]
+> Login mode is best-effort: it replays X's undocumented onboarding flow, answering whichever step
+> X asks for next (JS instrumentation, username, alternate identifier/email, password, duplicate
+> account check, email or 2FA code). X changes this flow without notice, and steps it does not
+> recognize (for example a captcha) fail with `LoginFailedException`. It cannot be tested against
+> the real service offline, so prefer cookie-based accounts whenever possible.
+
+If Twitter sends an email verification code, the default handler reads it from stdin.
+To handle it programmatically:
+
+```java
+var scraper = TwScrape.create(repo, (type, prompt) -> myEmailClient.fetchLatestCode());
+```
+
+### Persistent sessions
+
+For accounts that survive a restart, use `SqliteAccountRepository`:
 
 ```java
 var repo = new SqliteAccountRepository("accounts.db");
@@ -65,46 +156,7 @@ try (var scraper = TwScrape.create(repo)) {
 }
 ```
 
-## Maven dependency
-
-```xml
-<dependency>
-    <groupId>io.github.andreygrigoriev</groupId>
-    <artifactId>twscrape4j</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
-</dependency>
-```
-
-## Account setup
-
-### Cookie-based (recommended, most stable)
-
-Export `auth_token` and `ct0` from your browser's cookie store for `x.com`, then:
-
-```java
-scraper.addAccountByCookies("username", "auth_token_value", "ct0_value");
-```
-
-### Username/password login (best-effort)
-
-```java
-scraper.addAccount("username", "password", "email@example.com");
-```
-
-Login mode is best-effort: it replays X's undocumented onboarding flow, answering whichever step
-X asks for next (JS instrumentation, username, alternate identifier/email, password, duplicate
-account check, email or 2FA code). X changes this flow without notice, and steps it does not
-recognize (for example a captcha) fail with `LoginFailedException`. It cannot be tested against
-the real service offline, so prefer cookie-based accounts whenever possible.
-
-If Twitter sends an email verification code, the default handler reads it from stdin.
-To handle it programmatically:
-
-```java
-var scraper = TwScrape.create(repo, (type, prompt) -> myEmailClient.fetchLatestCode());
-```
-
-## API surface
+### API surface
 
 ```java
 // Search
@@ -129,7 +181,34 @@ Stream<Tweet>   listTimeline(long listId)
 Stream<User>    listMembers(long listId)
 ```
 
-Every paginated method has a `*Raw` variant returning `Stream<JsonNode>` for unmapped fields.
+> [!TIP]
+> Every paginated method has a `*Raw` variant returning `Stream<JsonNode>` for unmapped fields.
+
+### Custom storage
+
+Implement `AccountRepository` to use any backend:
+
+```java
+class PostgresAccountRepository implements AccountRepository {
+    public void save(Account a) { ... }
+    public Optional<Account> findByUsername(String username) { ... }
+    public List<Account> findActive() { ... }
+    public void updateState(Account a) { ... }
+}
+```
+
+| Implementation                            | Persistence | Notes                       |
+|-------------------------------------------|-------------|-----------------------------|
+| `InMemoryAccountRepository`               | ephemeral   | used by `TwScrape.create()` |
+| `SqliteAccountRepository("accounts.db")`  | persistent  | SQLite file via jOOQ        |
+
+### TLS fingerprinting
+
+twscrape4j uses [Conscrypt](https://github.com/google/conscrypt) to register a BoringSSL-backed TLS
+provider, producing a browser-like JA3 fingerprint. When the Conscrypt native library is unavailable
+(e.g. on unsupported platforms), the library falls back to the JDK's default TLS stack with a warning.
+
+---
 
 ## Command-line tool
 
@@ -144,11 +223,16 @@ twscrape user @jack --format json
 twscrape tweets @jack --limit -1 > tweets.jsonl
 ```
 
-`twscrape` in these examples is the [native executable](#native-executable). Without it, use the
-[shaded jar](#running-on-the-jvm) (`alias twscrape='java -jar cli/target/twscrape4j-cli-*-all.jar'`)
-or the [Docker image](#docker) (`docker run --rm -e TWSCRAPE_AUTH_TOKEN -e TWSCRAPE_CT0 twscrape4j-cli`).
+### Installation
 
-### Install with Homebrew
+| Method                                    | Command                                                                        |
+|-------------------------------------------|--------------------------------------------------------------------------------|
+| [Homebrew](#install-with-homebrew)        | `brew install andreygrigoriev/tap/twscrape`                                    |
+| [Release tarball](#install-with-homebrew) | download from [Releases](https://github.com/andreygrigoriev/twscrape4j/releases) |
+| [Docker](#docker) (build locally)         | `docker build -t twscrape4j-cli .`                                             |
+| [JVM jar](#running-on-the-jvm)            | `alias twscrape='java -jar cli/target/twscrape4j-cli-*-all.jar'`               |
+
+#### Install with Homebrew
 
 Prebuilt native binaries for macOS and Linux (arm64 and x86_64) are published with each
 [GitHub Release](https://github.com/andreygrigoriev/twscrape4j/releases):
@@ -162,39 +246,42 @@ against its `.sha256` file and put `twscrape` on your `PATH`.
 
 ### Commands
 
-| Command                                                        | Library call      | Result |
-|----------------------------------------------------------------|-------------------|--------|
-| `search <query> [--mode top\|latest\|media]` (default `latest`) | `search`          | stream |
-| `trends [--category news\|sport\|entertainment\|trending]` (default `trending`) | `trends` | list |
-| `tweet <tweetId>`                                              | `tweetDetails`    | single |
-| `replies <tweetId>`                                            | `tweetReplies`    | stream |
-| `retweeters <tweetId>`                                         | `tweetRetweeters` | stream |
-| `user <login>` (with or without a leading `@`)                 | `userByLogin`     | single |
-| `user-by-id <userId>`                                          | `userById`        | single |
-| `tweets <user>`                                                | `userTweets`      | stream |
-| `media <user>`                                                 | `userMedia`       | stream |
-| `followers <user>`                                             | `userFollowers`   | stream |
-| `following <user>`                                             | `userFollowing`   | stream |
-| `list-timeline <listId>`                                       | `listTimeline`    | stream |
-| `list-members <listId>`                                        | `listMembers`     | stream |
+| Command                                                                          | Library call      | Result |
+|----------------------------------------------------------------------------------|-------------------|--------|
+| `search <query> [--mode top\|latest\|media]` (default `latest`)                  | `search`          | stream |
+| `trends [--category news\|sport\|entertainment\|trending]` (default `trending`)  | `trends`          | list   |
+| `tweet <tweetId>`                                                                | `tweetDetails`    | single |
+| `replies <tweetId>`                                                              | `tweetReplies`    | stream |
+| `retweeters <tweetId>`                                                           | `tweetRetweeters` | stream |
+| `user <login>` (with or without a leading `@`)                                   | `userByLogin`     | single |
+| `user-by-id <userId>`                                                            | `userById`        | single |
+| `tweets <user>`                                                                  | `userTweets`      | stream |
+| `media <user>`                                                                   | `userMedia`       | stream |
+| `followers <user>`                                                               | `userFollowers`   | stream |
+| `following <user>`                                                               | `userFollowing`   | stream |
+| `list-timeline <listId>`                                                         | `listTimeline`    | stream |
+| `list-members <listId>`                                                          | `listMembers`     | stream |
 
 A `<user>` argument is either a numeric user ID or `@login`; a login is resolved to an ID via
 `userByLogin` first (exit code 4 if not found). A bare name without `@` is rejected as a usage
 error. Tweet, user and list IDs must be positive numbers. `--mode` and `--category` values are
 case-insensitive.
 
-A search query that starts with `-` would be parsed as an option (and fail with a misleading
-"Missing required parameter" usage error). End the options with `--` first:
-`twscrape search --mode top -- "-filter:replies java"`.
+> [!NOTE]
+> A search query that starts with `-` would be parsed as an option (and fail with a misleading
+> "Missing required parameter" usage error). End the options with `--` first:
+> `twscrape search --mode top -- "-filter:replies java"`.
 
-Options shared by every data command:
+### Options
 
-| Option                | Description                                                                                 |
-|-----------------------|---------------------------------------------------------------------------------------------|
+Shared by every data command:
+
+| Option                 | Description                                                                                 |
+|------------------------|---------------------------------------------------------------------------------------------|
 | `--format jsonl\|json` | `jsonl` (default): one compact object per line, flushed per item. `json`: a pretty-printed array for streams/lists, a pretty-printed object for single results |
-| `--limit N`           | maximum number of items for streams and lists (default `20`; `-1` = no limit). Pagination stops early |
-| `--raw`               | print the raw GraphQL JSON from the `*Raw` API methods instead of the mapped model           |
-| `-v, --verbose`       | debug logging for `io.github.twscrape4j` on stderr, plus stack traces on errors. Accepted before or after the subcommand |
+| `--limit N`            | maximum number of items for streams and lists (default `20`; `-1` = no limit). Pagination stops early |
+| `--raw`                | print the raw GraphQL JSON from the `*Raw` API methods instead of the mapped model           |
+| `-v, --verbose`        | debug logging for `io.github.twscrape4j` on stderr, plus stack traces on errors. Accepted before or after the subcommand |
 
 Every command, including the root, has `-h/--help` and `-V/--version`.
 
@@ -203,9 +290,10 @@ messages are cut) go to stderr. With `--verbose`, HTTP client logging stays quie
 would print the account cookies. If stdout cannot be written (the reader of a pipe exited, the disk
 is full), the command stops fetching further pages and exits 1.
 
-When the account hits a rate limit mid-pagination, the library waits until the limit resets (up to
-about 15 minutes) before fetching the next page. The wait is logged only at debug level, so without
-`-v` a long-running stream can look hung; use `--limit` to keep runs short.
+> [!NOTE]
+> When the account hits a rate limit mid-pagination, the library waits until the limit resets (up to
+> about 15 minutes) before fetching the next page. The wait is logged only at debug level, so without
+> `-v` a long-running stream can look hung; use `--limit` to keep runs short.
 
 ### Account configuration (environment)
 
@@ -221,6 +309,9 @@ about 15 minutes) before fetching the next page. The wait is logged only at debu
 Cookie mode is recommended. Login mode is best-effort and may break whenever X changes its login
 flow (see [Username/password login](#usernamepassword-login-best-effort)).
 
+<details>
+<summary><b>How the CLI picks a mode, and verification-code prompts</b></summary>
+
 If both cookie variables are set, cookie mode is used. Otherwise, if username, password and email
 are all set, the CLI logs in. Anything else, including only one of the two cookie variables, fails
 with exit code 3. Blank values count as unset; values are trimmed, except `TWSCRAPE_PASSWORD`,
@@ -235,14 +326,9 @@ is piped, set `TWSCRAPE_CHALLENGE_CODE` or the run fails with exit code 3.
 Cookie mode does not check the cookies up front: expired or invalid cookies surface on the first
 request as an API error (HTTP 401/403) and exit with code 1, not 3.
 
-### Output schema
+</details>
 
-Typed output is built explicitly (not by reflection over the model records). IDs are strings,
-because Twitter IDs exceed 2^53 and would lose precision in JavaScript and `jq`. Timestamps are
-ISO-8601 strings. Absent fields (null, empty strings, and the epoch placeholder for a missing date)
-are omitted, and the raw GraphQL payload is never included (use `--raw` for that). A tweet's
-`conversationId` is omitted when it is `0` (missing), and its `url` is omitted when the author or the
-author's username is missing.
+### Output schema
 
 ```json
 // Tweet
@@ -256,19 +342,31 @@ author's username is missing.
 {"name":"...","tweetCount":1000}
 ```
 
+<details>
+<summary><b>Schema rules</b></summary>
+
+Typed output is built explicitly (not by reflection over the model records). IDs are strings,
+because Twitter IDs exceed 2^53 and would lose precision in JavaScript and `jq`. Timestamps are
+ISO-8601 strings. Absent fields (null, empty strings, and the epoch placeholder for a missing date)
+are omitted, and the raw GraphQL payload is never included (use `--raw` for that). A tweet's
+`conversationId` is omitted when it is `0` (missing), and its `url` is omitted when the author or the
+author's username is missing.
+
 An empty stream prints nothing in `jsonl` mode and `[]` in `json` mode. In `json` mode the whole
 stream is buffered, so an error mid-stream prints nothing to stdout. In `jsonl` mode the lines
 already written stay, and the command still exits 1.
 
+</details>
+
 ### Exit codes
 
 | Code | Meaning                                                                                  |
-|------|------------------------------------------------------------------------------------------|
-| 0    | success (including an empty stream)                                                      |
-| 1    | runtime / API error (`TwitterException`, network or I/O, also during login; expired or invalid cookies) |
-| 2    | usage error (bad arguments or options, e.g. a blank query or an invalid login)             |
-| 3    | configuration / auth error (missing or partial env, login rejected, no challenge code)   |
-| 4    | not found (`tweet`, `user` or `user-by-id` found nothing or an unavailable user, or a `@login` did not resolve) |
+|:----:|------------------------------------------------------------------------------------------|
+| `0`  | success (including an empty stream)                                                      |
+| `1`  | runtime / API error (`TwitterException`, network or I/O, also during login; expired or invalid cookies) |
+| `2`  | usage error (bad arguments or options, e.g. a blank query or an invalid login)           |
+| `3`  | configuration / auth error (missing or partial env, login rejected, no challenge code)   |
+| `4`  | not found (`tweet`, `user` or `user-by-id` found nothing or an unavailable user, or a `@login` did not resolve) |
 
 ### Running on the JVM
 
@@ -313,6 +411,9 @@ Without `-it` the container has no terminal, so login mode needs `TWSCRAPE_CHALL
 asks for a code. With `-t`, stdout is a terminal too, so do not combine an interactive login with
 piping the output.
 
+<details>
+<summary><b>Docker build notes</b></summary>
+
 - The image is built for the build host's architecture (for example arm64 on Apple Silicon).
 - The native-image builder needs a few GB of memory. On a small VM, cap its heap with
   `--build-arg NATIVE_IMAGE_OPTIONS=-J-Xmx2800m`.
@@ -325,24 +426,30 @@ piping the output.
 - `.dockerignore` excludes `.env` files, keys and cookie files; keep credentials out of the build
   context anyway, since `COPY . .` copies everything else into the builder.
 
-## Custom storage
+</details>
 
-Implement `AccountRepository` to use any backend:
+---
 
-```java
-class PostgresAccountRepository implements AccountRepository {
-    public void save(Account a) { ... }
-    public Optional<Account> findByUsername(String username) { ... }
-    public List<Account> findActive() { ... }
-    public void updateState(Account a) { ... }
-}
+## Building from source
+
+Requires Java 25+ and Maven 3.9+ (or the bundled wrapper `./mvnw`).
+
+| Module  | Artifact                                   | Contents                                           |
+|---------|--------------------------------------------|----------------------------------------------------|
+| `core/` | `io.github.andreygrigoriev:twscrape4j`     | the library (the artifact library users depend on) |
+| `cli/`  | `io.github.andreygrigoriev:twscrape4j-cli` | the `twscrape` command-line tool (picocli)         |
+
+```bash
+./mvnw verify                  # build and test all modules
+./mvnw -pl core -am install    # install the library and its parent POM (twscrape4j-parent) to ~/.m2
+./mvnw -pl cli -am package     # build the CLI (and core); produces cli/target/twscrape4j-cli-<version>-all.jar
 ```
 
-Built-in implementations: `SqliteAccountRepository("accounts.db")` (persistent) and `InMemoryAccountRepository` (ephemeral, used by `TwScrape.create()`).
+The library POM inherits from `twscrape4j-parent`, so consumers resolving it from a repository need the
+parent POM there too (`-am` installs it; a plain `-pl core install` does not).
 
-## TLS fingerprinting
-
-twscrape4j uses [Conscrypt](https://github.com/google/conscrypt) to register a BoringSSL-backed TLS provider, producing a browser-like JA3 fingerprint. When the Conscrypt native library is unavailable (e.g. on unsupported platforms), the library falls back to the JDK's default TLS stack with a warning.
+The library artifact has no dependency on picocli, slf4j-simple or the native-image setup; those
+live only in `cli/`.
 
 ## Breaking changes / Migration notes
 
@@ -352,26 +459,39 @@ This library uses Jackson 3.x (`tools.jackson.*`), not Jackson 2.x (`com.fasterx
 The `*Raw` variants return `Stream<tools.jackson.databind.JsonNode>`. If you import `JsonNode`
 directly, update your import:
 
-```java
-// Jackson 2 (old):
-import com.fasterxml.jackson.databind.JsonNode;
-
-// Jackson 3 (required):
-import tools.jackson.databind.JsonNode;
+```diff
+- import com.fasterxml.jackson.databind.JsonNode;   // Jackson 2
++ import tools.jackson.databind.JsonNode;           // Jackson 3
 ```
 
-Your Maven dependency on `tools.jackson.core:jackson-databind` must be version 3.x. Jackson 2
-(`com.fasterxml.jackson.core:jackson-databind`) is not compatible and will cause
-`NoClassDefFoundError` at runtime.
+> [!CAUTION]
+> Your Maven dependency on `tools.jackson.core:jackson-databind` must be version 3.x. Jackson 2
+> (`com.fasterxml.jackson.core:jackson-databind`) is not compatible and will cause
+> `NoClassDefFoundError` at runtime.
 
 ## Keeping operation IDs current
 
-Twitter's internal GraphQL operation IDs rotate periodically. The constants are defined in each operation class (e.g. `SearchTimelineOperation.OPERATION_ID`). Cross-reference with [twscrape's API source](https://github.com/vladkens/twscrape/blob/main/twscrape/api.py) when you encounter 400/404 errors on specific operations.
+Twitter's internal GraphQL operation IDs rotate periodically. The constants are defined in each
+operation class (e.g. `SearchTimelineOperation.OPERATION_ID`). Cross-reference with
+[twscrape's API source](https://github.com/vladkens/twscrape/blob/main/twscrape/api.py) when you
+encounter 400/404 errors on specific operations.
 
-Shared feature flags live in `GraphQLClient.DEFAULT_FEATURES` (mirror of twscrape's `GQL_FEATURES`); a 400 error
-listing missing features means that map needs updating.
+| Symptom                              | Likely cause                                   | Where to fix                              |
+|--------------------------------------|------------------------------------------------|-------------------------------------------|
+| 400 listing missing features         | feature flags changed                          | `GraphQLClient.DEFAULT_FEATURES`          |
+| 400/404 on one operation             | operation ID rotated                           | `<Name>Operation.OPERATION_ID`            |
+| 404 persisting after 3 retries       | outdated operation ID, or X changed the web app layout `ClientTransaction` parses | `OPERATION_ID` / `ClientTransaction` |
 
-Every GraphQL request also carries an `x-client-transaction-id` header generated by `ClientTransaction` (a port of
-twscrape's `xclid.py`). Its key material is scraped once per account from the X web app; on a 404 the client
-regenerates it and retries up to 3 times. A persistent 404 means either the operation ID is outdated or X changed
-the web app layout the generator parses.
+Shared feature flags live in `GraphQLClient.DEFAULT_FEATURES` (mirror of twscrape's `GQL_FEATURES`).
+Every GraphQL request also carries an `x-client-transaction-id` header generated by
+`ClientTransaction` (a port of twscrape's `xclid.py`). Its key material is scraped once per account
+from the X web app; on a 404 the client regenerates it and retries up to 3 times. A persistent 404
+means either the operation ID is outdated or X changed the web app layout the generator parses.
+
+## Acknowledgments
+
+- [vladkens/twscrape](https://github.com/vladkens/twscrape): the Python library this project ports.
+
+## License
+
+[MIT](LICENSE) © 2026 Andrei Grigorev
